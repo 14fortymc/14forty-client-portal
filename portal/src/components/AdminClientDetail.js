@@ -4,7 +4,7 @@ import { css } from '../styles/shared';
 
 const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
 
-export default function AdminClientDetail({ client, accessToken }) {
+export default function AdminClientDetail({ client, accessToken, onClientUpdate }) {
   const [tab, setTab] = useState('Projects');
   const [clientData, setClientData] = useState(client);
   const [editModal, setEditModal] = useState(false);
@@ -16,6 +16,7 @@ export default function AdminClientDetail({ client, accessToken }) {
     setSaving(true);
     await supabase.from('clients').update(editForm).eq('id', clientData.id);
     setClientData({ ...clientData, ...editForm });
+    onClientUpdate?.(editForm);
     setEditModal(false);
     setSaving(false);
   };
