@@ -8,8 +8,10 @@ import Assets from './components/Assets';
 import Billing from './components/Billing';
 import Calendar from './components/Calendar';
 import AdminPortal from './components/AdminPortal';
+import Home from './components/Home';
 
 const NAV = [
+  { key: 'home', label: 'Home' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'projects', label: 'Project Status' },
   { key: 'requests', label: 'Requests' },
@@ -19,6 +21,7 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
+  home: 'Home',
   invoices: 'Invoices',
   projects: 'Project Status',
   requests: 'Requests',
@@ -32,7 +35,7 @@ export default function App() {
   const [clientId, setClientId] = useState(null);
   const [clientName, setClientName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [tab, setTab] = useState('invoices');
+  const [tab, setTab] = useState('home');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -153,6 +156,7 @@ export default function App() {
         </div>
 
         <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
+          {tab === 'home' && <Home clientId={clientId} clientName={clientName} setTab={setTab} />}
           {tab === 'invoices' && <Invoices clientId={clientId} />}
           {tab === 'projects' && <Projects clientId={clientId} />}
           {tab === 'requests' && <Requests clientId={clientId} />}
