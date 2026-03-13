@@ -9,6 +9,7 @@ import Billing from './components/Billing';
 import Calendar from './components/Calendar';
 import AdminPortal from './components/AdminPortal';
 import Home from './components/Home';
+import ChangePassword from './components/ChangePassword';
 
 const NAV = [
   { key: 'home', label: 'Home' },
@@ -35,6 +36,8 @@ export default function App() {
   const [clientId, setClientId] = useState(null);
   const [clientName, setClientName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(true);
+  const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('home');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,16 +58,18 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadClient = async (userId) => {
+  const loadClient = async (uid) => {
     const { data: cu } = await supabase
       .from('client_users')
-      .select('client_id, is_admin, clients(name, company_name)')
-      .eq('user_id', userId)
+      .select('client_id, is_admin, password_changed, clients(name, company_name)')
+      .eq('user_id', uid)
       .single();
 
     if (cu) {
+      setUserId(uid);
       setClientId(cu.client_id);
       setIsAdmin(cu.is_admin || false);
+      setPasswordChanged(cu.password_changed ?? true);
       setClientName(cu.clients?.company_name || cu.clients?.name || '');
       if (!cu.is_admin) loadPendingTasks(cu.client_id);
     }
@@ -91,6 +96,9 @@ export default function App() {
   );
 
   if (!session) return <Login />;
+
+  // Force password change on first login (non-admin clients only)
+  if (!isAdmin && !passwordChanged) return <ChangePassword userId={userId} />;
 
   // Admin view
   if (isAdmin) return <AdminPortal onSignOut={handleSignOut} accessToken={session?.access_token} />;

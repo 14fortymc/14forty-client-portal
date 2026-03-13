@@ -46,6 +46,7 @@ export default function AdminClients({ onSelectClient, accessToken }) {
           billing_email: form.billing_email,
           billing_address: form.billing_address,
           temp_password: form.temp_password,
+          portal_url: window.location.origin,
         }),
       });
 
