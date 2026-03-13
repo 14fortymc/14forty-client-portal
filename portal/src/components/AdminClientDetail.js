@@ -26,6 +26,7 @@ export default function AdminClientDetail({ client, accessToken, onClientUpdate 
   };
 
   const sendPasswordReset = async () => {
+    console.log('[sendPasswordReset] SUPABASE_URL:', SUPABASE_URL, '| accessToken:', accessToken);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/send-password-reset`, {
         method: 'POST',
