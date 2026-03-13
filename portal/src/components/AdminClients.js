@@ -30,12 +30,10 @@ export default function AdminClients({ onSelectClient }) {
 
     try {
       // Call Edge Function — runs server-side with service role, never touches your session
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-client-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           name: form.name,
