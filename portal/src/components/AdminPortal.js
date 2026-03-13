@@ -79,7 +79,7 @@ export default function AdminPortal({ onSignOut, accessToken }) {
 
         <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
           {selectedClient ? (
-            <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} />
+            <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} accessToken={accessToken} />
           ) : tab === 'clients' ? (
             <AdminClients onSelectClient={setSelectedClient} accessToken={accessToken} />
           ) : tab === 'requests' ? (

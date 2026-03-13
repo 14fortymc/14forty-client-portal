@@ -1,14 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 
-const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Work Requests'];
+const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
 
-export default function AdminClientDetail({ client }) {
+export default function AdminClientDetail({ client, accessToken }) {
   const [tab, setTab] = useState('Projects');
+  const [clientData, setClientData] = useState(client);
+  const [editModal, setEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ name: client.name || '', company_name: client.company_name || '', billing_email: client.billing_email || '', billing_address: client.billing_address || '' });
+  const [pwResetSent, setPwResetSent] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const saveClientEdit = async () => {
+    setSaving(true);
+    await supabase.from('clients').update(editForm).eq('id', clientData.id);
+    setClientData({ ...clientData, ...editForm });
+    setEditModal(false);
+    setSaving(false);
+  };
+
+  const sendPasswordReset = async () => {
+    await supabase.auth.resetPasswordForEmail(clientData.billing_email);
+    setPwResetSent(true);
+    setTimeout(() => setPwResetSent(false), 4000);
+  };
 
   return (
     <>
+      {/* Client profile header */}
+      <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div>
+          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 20, color: 'var(--navy)', marginBottom: 4 }}>{clientData.company_name || clientData.name}</div>
+          <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.8 }}>
+            {clientData.name && clientData.company_name && <span>{clientData.name} · </span>}
+            <span>{clientData.billing_email}</span>
+            {clientData.billing_address && <span> · {clientData.billing_address}</span>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          {pwResetSent && <span style={{ fontSize: 12, color: 'var(--orange)', fontWeight: 700 }}>✓ Reset email sent</span>}
+          <button onClick={sendPasswordReset} style={{ ...css.secondaryBtn, padding: '6px 12px', fontSize: 12 }}>Reset Password</button>
+          <button onClick={() => setEditModal(true)} style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }}>Edit Info</button>
+        </div>
+      </div>
+
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {TABS.map(t => (
@@ -24,7 +60,25 @@ export default function AdminClientDetail({ client }) {
       {tab === 'Projects' && <AdminProjects clientId={client.id} />}
       {tab === 'Invoices' && <AdminInvoices clientId={client.id} />}
       {tab === 'Feedback Tasks' && <AdminFeedbackTasks clientId={client.id} />}
+      {tab === 'Assets' && <AdminAssets clientId={client.id} />}
       {tab === 'Work Requests' && <AdminWorkRequestsDetail clientId={client.id} />}
+
+      {/* Edit Client Modal */}
+      {editModal && (
+        <div style={css.overlay} onClick={() => setEditModal(false)}>
+          <div style={css.modal} onClick={e => e.stopPropagation()}>
+            <div style={css.modalTitle}>Edit Client Info</div>
+            <div style={css.formGroup}><label style={css.formLabel}>Contact Name</label><input style={css.formInput} value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></div>
+            <div style={css.formGroup}><label style={css.formLabel}>Company Name</label><input style={css.formInput} value={editForm.company_name} onChange={e => setEditForm({ ...editForm, company_name: e.target.value })} /></div>
+            <div style={css.formGroup}><label style={css.formLabel}>Billing Email <span style={{ color: 'var(--slate)', fontWeight: 400 }}>— login email</span></label><input style={css.formInput} value={editForm.billing_email} onChange={e => setEditForm({ ...editForm, billing_email: e.target.value })} /></div>
+            <div style={css.formGroup}><label style={css.formLabel}>Billing Address</label><input style={css.formInput} value={editForm.billing_address} onChange={e => setEditForm({ ...editForm, billing_address: e.target.value })} /></div>
+            <div style={css.modalActions}>
+              <button style={css.btnCancel} onClick={() => setEditModal(false)}>Cancel</button>
+              <button style={css.btnSubmit} onClick={saveClientEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -207,8 +261,10 @@ function AdminInvoices({ clientId }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [activeInvoice, setActiveInvoice] = useState(null);
   const [form, setForm] = useState({ invoice_number: '', description: '', amount: '', status: 'due', issued_date: '', due_date: '' });
   const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => { fetchInvoices(); }, [clientId]);
 
@@ -218,11 +274,35 @@ function AdminInvoices({ clientId }) {
     setLoading(false);
   };
 
+  const openCreate = () => {
+    setActiveInvoice(null);
+    setForm({ invoice_number: '', description: '', amount: '', status: 'due', issued_date: '', due_date: '' });
+    setModal(true);
+  };
+
+  const openEdit = (inv) => {
+    setActiveInvoice(inv);
+    setForm({ invoice_number: inv.invoice_number, description: inv.description || '', amount: String(inv.amount), status: inv.status, issued_date: inv.issued_date || '', due_date: inv.due_date || '' });
+    setModal(true);
+  };
+
   const saveInvoice = async () => {
     setSaving(true);
-    await supabase.from('invoices').insert({ ...form, client_id: clientId, amount: parseFloat(form.amount) });
-    setModal(false); setForm({ invoice_number: '', description: '', amount: '', status: 'due', issued_date: '', due_date: '' });
+    const payload = { ...form, amount: parseFloat(form.amount) };
+    if (activeInvoice) {
+      await supabase.from('invoices').update(payload).eq('id', activeInvoice.id);
+    } else {
+      await supabase.from('invoices').insert({ ...payload, client_id: clientId });
+    }
+    setModal(false); setActiveInvoice(null);
+    setForm({ invoice_number: '', description: '', amount: '', status: 'due', issued_date: '', due_date: '' });
     await fetchInvoices(); setSaving(false);
+  };
+
+  const deleteInvoice = async (id) => {
+    await supabase.from('invoices').delete().eq('id', id);
+    setDeleteConfirm(null);
+    fetchInvoices();
   };
 
   const updateStatus = async (id, status) => {
@@ -238,13 +318,13 @@ function AdminInvoices({ clientId }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <button style={css.primaryBtn} onClick={() => setModal(true)}>+ New Invoice</button>
+        <button style={css.primaryBtn} onClick={openCreate}>+ New Invoice</button>
       </div>
 
       <div style={css.card}>
         {invoices.length === 0 ? <div style={{ textAlign: 'center', color: 'var(--slate)', fontSize: 14, padding: '16px 0' }}>No invoices yet.</div> : (
           <table style={css.table}>
-            <thead><tr>{['Invoice #', 'Description', 'Issued', 'Due', 'Amount', 'Status'].map(h => <th key={h} style={css.th}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Invoice #', 'Description', 'Issued', 'Due', 'Amount', 'Status', ''].map(h => <th key={h} style={css.th}>{h}</th>)}</tr></thead>
             <tbody>
               {invoices.map(inv => (
                 <tr key={inv.id}>
@@ -261,6 +341,18 @@ function AdminInvoices({ clientId }) {
                       <option value="paid">Paid</option>
                     </select>
                   </td>
+                  <td style={{ ...css.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <span onClick={() => openEdit(inv)} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', marginRight: 12, fontWeight: 600 }}>Edit</span>
+                    {deleteConfirm === inv.id ? (
+                      <span>
+                        <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
+                        <span onClick={() => deleteInvoice(inv.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
+                        <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+                      </span>
+                    ) : (
+                      <span onClick={() => setDeleteConfirm(inv.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -271,7 +363,7 @@ function AdminInvoices({ clientId }) {
       {modal && (
         <div style={css.overlay} onClick={() => setModal(false)}>
           <div style={css.modal} onClick={e => e.stopPropagation()}>
-            <div style={css.modalTitle}>New Invoice</div>
+            <div style={css.modalTitle}>{activeInvoice ? 'Edit Invoice' : 'New Invoice'}</div>
             <div style={css.formGroup}><label style={css.formLabel}>Invoice Number</label><input style={css.formInput} value={form.invoice_number} onChange={e => setForm({ ...form, invoice_number: e.target.value })} placeholder="INV-2025-001" /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Description</label><input style={css.formInput} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="e.g. Q2 Retainer" /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Amount</label><input type="number" style={css.formInput} value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></div>
@@ -288,7 +380,7 @@ function AdminInvoices({ clientId }) {
             </div>
             <div style={css.modalActions}>
               <button style={css.btnCancel} onClick={() => setModal(false)}>Cancel</button>
-              <button style={css.btnSubmit} onClick={saveInvoice} disabled={saving}>{saving ? 'Saving…' : 'Create Invoice'}</button>
+              <button style={css.btnSubmit} onClick={saveInvoice} disabled={saving}>{saving ? 'Saving…' : activeInvoice ? 'Save Changes' : 'Create Invoice'}</button>
             </div>
           </div>
         </div>
@@ -298,13 +390,14 @@ function AdminInvoices({ clientId }) {
 }
 
 // ── FEEDBACK TASKS ─────────────────────────────────────────
-// ── FEEDBACK TASKS ─────────────────────────────────────────
 function AdminFeedbackTasks({ clientId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [activeTask, setActiveTask] = useState(null);
   const [form, setForm] = useState({ title: '', description: '', due_date: '', markup_url: '', drive_url: '', loom_url: '' });
   const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => { fetchTasks(); }, [clientId]);
 
@@ -314,13 +407,35 @@ function AdminFeedbackTasks({ clientId }) {
     setLoading(false);
   };
 
+  const openCreate = () => {
+    setActiveTask(null);
+    setForm({ title: '', description: '', due_date: '', markup_url: '', drive_url: '', loom_url: '' });
+    setModal(true);
+  };
+
+  const openEdit = (task) => {
+    setActiveTask(task);
+    setForm({ title: task.title, description: task.description || '', due_date: task.due_date || '', markup_url: task.markup_url || '', drive_url: task.drive_url || '', loom_url: task.loom_url || '' });
+    setModal(true);
+  };
+
   const saveTask = async () => {
     setSaving(true);
-    await supabase.from('feedback_tasks').insert({ ...form, client_id: clientId, status: 'awaiting' });
-    setModal(false);
+    if (activeTask) {
+      await supabase.from('feedback_tasks').update(form).eq('id', activeTask.id);
+    } else {
+      await supabase.from('feedback_tasks').insert({ ...form, client_id: clientId, status: 'awaiting' });
+    }
+    setModal(false); setActiveTask(null);
     setForm({ title: '', description: '', due_date: '', markup_url: '', drive_url: '', loom_url: '' });
     await fetchTasks();
     setSaving(false);
+  };
+
+  const deleteTask = async (id) => {
+    await supabase.from('feedback_tasks').delete().eq('id', id);
+    setDeleteConfirm(null);
+    fetchTasks();
   };
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -344,7 +459,7 @@ function AdminFeedbackTasks({ clientId }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-        <button style={css.primaryBtn} onClick={() => setModal(true)}>+ Send Feedback Request</button>
+        <button style={css.primaryBtn} onClick={openCreate}>+ Send Feedback Request</button>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -369,9 +484,23 @@ function AdminFeedbackTasks({ clientId }) {
                   </div>
                 )}
               </div>
-              <span style={{ ...css.pill, ...(task.status === 'awaiting' ? css.pill_awaiting : css.pill_paid), whiteSpace: 'nowrap' }}>
-                {task.status === 'awaiting' ? 'Awaiting Response' : 'Responded'}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                <span style={{ ...css.pill, ...(task.status === 'awaiting' ? css.pill_awaiting : css.pill_paid), whiteSpace: 'nowrap' }}>
+                  {task.status === 'awaiting' ? 'Awaiting Response' : 'Responded'}
+                </span>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <span onClick={() => openEdit(task)} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                  {deleteConfirm === task.id ? (
+                    <span>
+                      <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
+                      <span onClick={() => deleteTask(task.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
+                      <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+                    </span>
+                  ) : (
+                    <span onClick={() => setDeleteConfirm(task.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ))}
@@ -380,7 +509,7 @@ function AdminFeedbackTasks({ clientId }) {
       {modal && (
         <div style={css.overlay} onClick={() => setModal(false)}>
           <div style={{ ...css.modal, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div style={css.modalTitle}>Send Feedback Request</div>
+            <div style={css.modalTitle}>{activeTask ? 'Edit Feedback Request' : 'Send Feedback Request'}</div>
             <div style={css.formGroup}>
               <label style={css.formLabel}>Title</label>
               <input style={css.formInput} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Review homepage copy draft" />
@@ -413,7 +542,7 @@ function AdminFeedbackTasks({ clientId }) {
 
             <div style={css.modalActions}>
               <button style={css.btnCancel} onClick={() => setModal(false)}>Cancel</button>
-              <button style={css.btnSubmit} onClick={saveTask} disabled={saving}>{saving ? 'Sending…' : 'Send Request'}</button>
+              <button style={css.btnSubmit} onClick={saveTask} disabled={saving}>{saving ? 'Saving…' : activeTask ? 'Save Changes' : 'Send Request'}</button>
             </div>
           </div>
         </div>
@@ -422,10 +551,175 @@ function AdminFeedbackTasks({ clientId }) {
   );
 }
 
-// ── WORK REQUESTS (read only in client detail) ─────────────
+// ── ASSETS ─────────────────────────────────────────────────
+function AdminAssets({ clientId }) {
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [folderPath, setFolderPath] = useState('/');
+  const [modal, setModal] = useState(null); // null | 'file' | 'folder'
+  const [form, setForm] = useState({ name: '', file_type: 'pdf', drive_url: '' });
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const fetchAssets = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('assets').select('*').eq('client_id', clientId).eq('folder_path', folderPath).order('is_folder', { ascending: false }).order('name', { ascending: true });
+    setAssets(data || []);
+    setLoading(false);
+  }, [clientId, folderPath]);
+
+  useEffect(() => { fetchAssets(); }, [fetchAssets]);
+
+  const createFolder = async () => {
+    setSaving(true);
+    await supabase.from('assets').insert({ client_id: clientId, name: form.name, is_folder: true, folder_path: folderPath, file_type: 'folder' });
+    setModal(null); setForm({ name: '', file_type: 'pdf', drive_url: '' });
+    await fetchAssets(); setSaving(false);
+  };
+
+  const createFile = async () => {
+    setSaving(true);
+    await supabase.from('assets').insert({ client_id: clientId, name: form.name, drive_url: form.drive_url, file_type: form.file_type, folder_path: folderPath, is_folder: false });
+    setModal(null); setForm({ name: '', file_type: 'pdf', drive_url: '' });
+    await fetchAssets(); setSaving(false);
+  };
+
+  const deleteAsset = async (id) => {
+    await supabase.from('assets').delete().eq('id', id);
+    setDeleteConfirm(null);
+    fetchAssets();
+  };
+
+  const navigateInto = (folderName) => {
+    setFolderPath(folderPath === '/' ? `/${folderName}/` : `${folderPath}${folderName}/`);
+  };
+
+  const breadcrumbs = folderPath === '/' ? ['/'] : ['/', ...folderPath.replace(/^\/|\/$/g, '').split('/')];
+
+  const navigateTo = (index) => {
+    if (index === 0) { setFolderPath('/'); return; }
+    const parts = folderPath.replace(/^\/|\/$/g, '').split('/');
+    setFolderPath('/' + parts.slice(0, index).join('/') + '/');
+  };
+
+  const fileTypeIcon = (type) => ({ folder: '📁', pdf: '📄', zip: '🗜', figma: '🎨', jpg: '🖼', png: '🖼', gif: '🖼', webp: '🖼', svg: '🖼', doc: '📝', docx: '📝', mp4: '🎬', mov: '🎬', other: '📎' }[type] || '📎');
+
+  if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--slate)' }}>
+          {breadcrumbs.map((crumb, i) => (
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {i > 0 && <span style={{ color: 'var(--border)' }}>/</span>}
+              <span onClick={() => navigateTo(i === 0 ? 0 : i)} style={{ cursor: i < breadcrumbs.length - 1 ? 'pointer' : 'default', color: i < breadcrumbs.length - 1 ? 'var(--blue)' : 'var(--navy)', fontWeight: i === breadcrumbs.length - 1 ? 700 : 400 }}>
+                {crumb === '/' ? 'Root' : crumb}
+              </span>
+            </span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button style={{ ...css.secondaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setForm({ name: '', file_type: 'pdf', drive_url: '' }); setModal('folder'); }}>+ Folder</button>
+          <button style={css.primaryBtn} onClick={() => { setForm({ name: '', file_type: 'pdf', drive_url: '' }); setModal('file'); }}>+ Add File</button>
+        </div>
+      </div>
+
+      <div style={css.card}>
+        {assets.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--slate)', fontSize: 14, padding: '24px 0' }}>
+            {folderPath === '/' ? 'No assets yet. Add a file or folder to get started.' : 'This folder is empty.'}
+          </div>
+        ) : (
+          <table style={css.table}>
+            <thead><tr>{['Name', 'Type', ''].map(h => <th key={h} style={css.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {assets.map(asset => (
+                <tr key={asset.id}>
+                  <td style={{ ...css.td, fontWeight: asset.is_folder ? 700 : 400 }}>
+                    <span style={{ marginRight: 8 }}>{fileTypeIcon(asset.file_type)}</span>
+                    {asset.is_folder ? (
+                      <span onClick={() => navigateInto(asset.name)} style={{ cursor: 'pointer', color: 'var(--navy)' }}>{asset.name}</span>
+                    ) : asset.drive_url ? (
+                      <a href={asset.drive_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'none' }}>{asset.name} ↗</a>
+                    ) : (
+                      <span>{asset.name}</span>
+                    )}
+                  </td>
+                  <td style={{ ...css.td, color: 'var(--slate)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{asset.is_folder ? 'Folder' : asset.file_type}</td>
+                  <td style={{ ...css.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {deleteConfirm === asset.id ? (
+                      <span>
+                        <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
+                        <span onClick={() => deleteAsset(asset.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
+                        <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+                      </span>
+                    ) : (
+                      <span onClick={() => setDeleteConfirm(asset.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Add Folder Modal */}
+      {modal === 'folder' && (
+        <div style={css.overlay} onClick={() => setModal(null)}>
+          <div style={css.modal} onClick={e => e.stopPropagation()}>
+            <div style={css.modalTitle}>New Folder</div>
+            <div style={css.formGroup}><label style={css.formLabel}>Folder Name</label><input style={css.formInput} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Brand Assets" autoFocus /></div>
+            <div style={css.modalActions}>
+              <button style={css.btnCancel} onClick={() => setModal(null)}>Cancel</button>
+              <button style={css.btnSubmit} onClick={createFolder} disabled={saving || !form.name}>{saving ? 'Creating…' : 'Create Folder'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add File Modal */}
+      {modal === 'file' && (
+        <div style={css.overlay} onClick={() => setModal(null)}>
+          <div style={css.modal} onClick={e => e.stopPropagation()}>
+            <div style={css.modalTitle}>Add File</div>
+            <div style={css.formGroup}><label style={css.formLabel}>File Name</label><input style={css.formInput} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Brand Guidelines.pdf" /></div>
+            <div style={css.formGroup}><label style={css.formLabel}>File Type</label>
+              <select style={css.formSelect} value={form.file_type} onChange={e => setForm({ ...form, file_type: e.target.value })}>
+                <option value="pdf">PDF</option>
+                <option value="figma">Figma</option>
+                <option value="jpg">JPG</option>
+                <option value="png">PNG</option>
+                <option value="gif">GIF</option>
+                <option value="webp">WebP</option>
+                <option value="svg">SVG</option>
+                <option value="mp4">MP4</option>
+                <option value="mov">MOV</option>
+                <option value="zip">ZIP</option>
+                <option value="doc">DOC</option>
+                <option value="docx">DOCX</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div style={css.formGroup}><label style={css.formLabel}>Google Drive URL</label><input style={css.formInput} value={form.drive_url} onChange={e => setForm({ ...form, drive_url: e.target.value })} placeholder="https://drive.google.com/..." /></div>
+            <div style={css.modalActions}>
+              <button style={css.btnCancel} onClick={() => setModal(null)}>Cancel</button>
+              <button style={css.btnSubmit} onClick={createFile} disabled={saving || !form.name}>{saving ? 'Adding…' : 'Add File'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── WORK REQUESTS ─────────────────────────────────────────
 function AdminWorkRequestsDetail({ clientId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => { fetchRequests(); }, [clientId]);
 
@@ -440,6 +734,12 @@ function AdminWorkRequestsDetail({ clientId }) {
     fetchRequests();
   };
 
+  const deleteRequest = async (id) => {
+    await supabase.from('work_requests').delete().eq('id', id);
+    setDeleteConfirm(null);
+    fetchRequests();
+  };
+
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
@@ -449,17 +749,28 @@ function AdminWorkRequestsDetail({ clientId }) {
       {requests.length === 0 && <div style={{ ...css.card, textAlign: 'center', color: 'var(--slate)', fontSize: 14 }}>No work requests from this client yet.</div>}
       {requests.map(r => (
         <div key={r.id} style={{ ...css.card, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{r.subject}</div>
             <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: r.detail ? 8 : 0 }}>{r.type} · {fmtDate(r.created_at)}</div>
             {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5 }}>{r.detail}</div>}
           </div>
-          <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
-            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
+            <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
+              style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+            {deleteConfirm === r.id ? (
+              <span>
+                <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
+                <span onClick={() => deleteRequest(r.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
+                <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+              </span>
+            ) : (
+              <span onClick={() => setDeleteConfirm(r.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
+            )}
+          </div>
         </div>
       ))}
     </div>
