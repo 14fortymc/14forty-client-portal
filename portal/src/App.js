@@ -10,6 +10,7 @@ import Calendar from './components/Calendar';
 import AdminPortal from './components/AdminPortal';
 import Home from './components/Home';
 import ChangePassword from './components/ChangePassword';
+import ResetPassword from './components/ResetPassword';
 
 const NAV = [
   { key: 'home', label: 'Home' },
@@ -41,15 +42,35 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [passwordReset, setPasswordReset] = useState(false);
 
   useEffect(() => {
+    // Detect password recovery flow from URL (hash or query param)
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+    const queryParams = new URLSearchParams(window.location.search);
+    const isRecovery =
+      hashParams.get('type') === 'recovery' || queryParams.get('type') === 'recovery';
+
+    if (isRecovery) {
+      setPasswordReset(true);
+      setLoading(false);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) loadClient(session.user.id);
-      else setLoading(false);
+      if (!isRecovery) {
+        setSession(session);
+        if (session) loadClient(session.user.id);
+        else setLoading(false);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordReset(true);
+        setLoading(false);
+        return;
+      }
+      setPasswordReset(false);
       setSession(session);
       if (session) loadClient(session.user.id);
       else { setClientId(null); setClientName(''); setIsAdmin(false); setLoading(false); }
@@ -94,6 +115,8 @@ export default function App() {
       Loading…
     </div>
   );
+
+  if (passwordReset) return <ResetPassword />;
 
   if (!session) return <Login />;
 
