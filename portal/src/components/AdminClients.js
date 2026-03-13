@@ -4,7 +4,7 @@ import { css } from '../styles/shared';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 
-export default function AdminClients({ onSelectClient }) {
+export default function AdminClients({ onSelectClient, accessToken }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
