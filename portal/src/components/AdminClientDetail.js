@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 import ProjectTimeline from './ProjectTimeline';
+import ProjectOverview from './ProjectOverview';
 
 const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
 
@@ -100,7 +101,7 @@ function AdminProjects({ clientId }) {
   useEffect(() => { fetchProjects(); }, [clientId]);
 
   const fetchProjects = async () => {
-    const { data: ps } = await supabase.from('projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
+    const { data: ps } = await supabase.from('projects').select('*').eq('client_id', clientId).order('created_at', { ascending: true });
     setProjects(ps || []);
     for (const p of (ps || [])) {
       const { data: ms } = await supabase.from('milestones').select('*').eq('project_id', p.id).order('sort_order');
@@ -150,6 +151,8 @@ function AdminProjects({ clientId }) {
       </div>
 
       {projects.length === 0 && <div style={{ ...css.card, textAlign: 'center', color: 'var(--slate)', fontSize: 14 }}>No projects yet.</div>}
+
+      <ProjectOverview projects={projects} milestones={milestones} />
 
       {projects.map(p => (
         <div key={p.id} style={{ ...css.card, marginBottom: 20 }}>

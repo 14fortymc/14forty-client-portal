@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 import ProjectTimeline from './ProjectTimeline';
+import ProjectOverview from './ProjectOverview';
 
 export default function Projects({ clientId }) {
   const [projects, setProjects] = useState([]);
@@ -15,7 +16,7 @@ export default function Projects({ clientId }) {
       .from('projects')
       .select('*')
       .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (projects) {
       setProjects(projects);
@@ -36,6 +37,7 @@ export default function Projects({ clientId }) {
 
   return (
     <>
+      <ProjectOverview projects={projects} milestones={milestones} />
       {projects.map(project => {
         const ms = milestones[project.id] || [];
         const doneCount = ms.filter(m => m.status === 'completed').length;
