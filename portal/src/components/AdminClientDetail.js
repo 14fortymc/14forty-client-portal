@@ -126,7 +126,8 @@ function AdminProjects({ clientId }) {
     if (activeMilestone) {
       await supabase.from('milestones').update(msForm).eq('id', activeMilestone.id);
     } else {
-      await supabase.from('milestones').insert({ ...msForm, project_id: activeProject.id });
+      const nextOrder = (milestones[activeProject.id] || []).length;
+      await supabase.from('milestones').insert({ ...msForm, sort_order: nextOrder, project_id: activeProject.id });
     }
     setModal(null); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', sort_order: 0 });
     await fetchProjects(); setSaving(false);
@@ -258,7 +259,6 @@ function AdminProjects({ clientId }) {
                 <option value="completed">Completed</option>
               </select>
             </div>
-            <div style={css.formGroup}><label style={css.formLabel}>Sort Order</label><input type="number" style={css.formInput} value={msForm.sort_order} onChange={e => setMsForm({ ...msForm, sort_order: parseInt(e.target.value) })} /></div>
             <div style={css.modalActions}>
               <button style={css.btnCancel} onClick={() => { setModal(null); setActiveMilestone(null); }}>Cancel</button>
               <button style={css.btnSubmit} onClick={saveMilestone} disabled={saving}>{saving ? 'Saving…' : activeMilestone ? 'Save Changes' : 'Add Milestone'}</button>
