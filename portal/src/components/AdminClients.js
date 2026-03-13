@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
-
 export default function AdminClients({ onSelectClient }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,28 +27,17 @@ export default function AdminClients({ onSelectClient }) {
     setResult(null);
 
     try {
-      // 1. Create the auth user via Supabase Admin API (service role not available client-side,
-      //    so we use signUp — this creates the user and sends a confirmation email by default.
-      //    We'll use the admin invite approach via the REST API.)
-      const signUpRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          email: form.billing_email,
-          password: form.temp_password,
-        }),
+      // 1. Create auth user using Supabase JS client (handles ID correctly)
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: form.billing_email,
+        password: form.temp_password,
+        options: { emailRedirectTo: window.location.origin },
       });
 
-      const signUpData = await signUpRes.json();
+      if (signUpError) throw new Error(signUpError.message);
 
-      if (!signUpData.user && !signUpData.id) {
-        throw new Error(signUpData.msg || signUpData.message || 'Failed to create user account.');
-      }
-
-      const newUserId = signUpData.user?.id || signUpData.id;
+      const newUserId = signUpData?.user?.id;
+      if (!newUserId) throw new Error('Could not get user ID. The email may already be registered.');
 
       // 2. Insert the client record
       const { data: clientData, error: clientError } = await supabase
@@ -79,7 +65,7 @@ export default function AdminClients({ onSelectClient }) {
 
       if (linkError) throw new Error('Linking failed: ' + linkError.message);
 
-      setResult({ success: true, message: `✓ Account created for ${form.billing_email}. Share the portal URL and their temporary password with them.` });
+      setResult({ success: true, email: form.billing_email });
       setForm({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' });
       await fetchClients();
 
@@ -151,14 +137,14 @@ export default function AdminClients({ onSelectClient }) {
                   color: result.success ? 'var(--blue)' : '#dc2626',
                   fontSize: 14, lineHeight: 1.5,
                 }}>
-                  {result.message}
+                  {result.success ? `✓ Account created for ${result.email}. Share the portal URL and their temporary password with them directly.` : result.message}
                 </div>
                 {result.success && (
                   <div style={{ background: 'var(--cream)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--slate)', marginBottom: 8 }}>Share with client</div>
                     <div style={{ fontSize: 13, color: 'var(--navy)', lineHeight: 1.6 }}>
                       <strong>Portal URL:</strong> {window.location.origin}<br />
-                      <strong>Email:</strong> {form.billing_email || clients[0]?.billing_email}<br />
+                      <strong>Email:</strong> {result.email}<br />
                       <strong>Temp Password:</strong> (the one you just set)
                     </div>
                   </div>
