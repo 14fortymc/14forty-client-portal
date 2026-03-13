@@ -6,6 +6,8 @@ import ProjectOverview from './ProjectOverview';
 
 const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
 
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+
 export default function AdminClientDetail({ client, accessToken, onClientUpdate }) {
   const [tab, setTab] = useState('Projects');
   const [clientData, setClientData] = useState(client);
@@ -24,7 +26,23 @@ export default function AdminClientDetail({ client, accessToken, onClientUpdate 
   };
 
   const sendPasswordReset = async () => {
-    await supabase.auth.resetPasswordForEmail(clientData.billing_email);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          email: clientData.billing_email,
+          portal_url: window.location.origin,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to send reset email');
+    } catch (err) {
+      console.error('Password reset error:', err);
+    }
     setPwResetSent(true);
     setTimeout(() => setPwResetSent(false), 4000);
   };
