@@ -37,7 +37,8 @@ export default function ProjectTimeline({ milestones }) {
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--slate)', marginBottom: 24 }}>
         Timeline
       </div>
-      <div style={{ position: 'relative', height: H, userSelect: 'none' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ position: 'relative', height: H, userSelect: 'none', minWidth: 480 }}>
 
         {/* Base track */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: LINE, height: 2, background: 'var(--border)', borderRadius: 1 }} />
@@ -99,6 +100,7 @@ export default function ProjectTimeline({ milestones }) {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

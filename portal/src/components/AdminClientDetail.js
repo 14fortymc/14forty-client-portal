@@ -95,8 +95,10 @@ function AdminProjects({ clientId }) {
   const [activeProject, setActiveProject] = useState(null);
   const [activeMilestone, setActiveMilestone] = useState(null);
   const [projectForm, setProjectForm] = useState({ name: '', phase: '', progress_pct: 0, status: 'active' });
-  const [msForm, setMsForm] = useState({ name: '', target_date: '', status: 'upcoming', sort_order: 0 });
+  const [msForm, setMsForm] = useState({ name: '', target_date: '', status: 'upcoming', phase_label: '', sort_order: 0 });
   const [saving, setSaving] = useState(false);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   useEffect(() => { fetchProjects(); }, [clientId]);
 
@@ -143,6 +145,21 @@ function AdminProjects({ clientId }) {
     fetchProjects();
   };
 
+  const handleDrop = async (projectId) => {
+    if (!dragId || !dragOverId || dragId === dragOverId) return;
+    const ms = [...(milestones[projectId] || [])];
+    const fromIdx = ms.findIndex(m => m.id === dragId);
+    const toIdx = ms.findIndex(m => m.id === dragOverId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = ms.splice(fromIdx, 1);
+    ms.splice(toIdx, 0, moved);
+    setMilestones(prev => ({ ...prev, [projectId]: ms }));
+    setDragId(null); setDragOverId(null);
+    for (let i = 0; i < ms.length; i++) {
+      await supabase.from('milestones').update({ sort_order: i }).eq('id', ms[i].id);
+    }
+  };
+
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
   return (
@@ -164,7 +181,7 @@ function AdminProjects({ clientId }) {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button style={{ ...css.secondaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setProjectForm({ name: p.name, phase: p.phase || '', progress_pct: p.progress_pct || 0, status: p.status }); setModal('project'); }}>Edit</button>
-              <button style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', sort_order: 0 }); setModal('milestone'); }}>+ Milestone</button>
+              <button style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', phase_label: '', sort_order: 0 }); setModal('milestone'); }}>+ Milestone</button>
             </div>
           </div>
 
@@ -185,15 +202,33 @@ function AdminProjects({ clientId }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  {['Milestone', 'Target Date', 'Status', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--slate)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '0 10px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                  {['', 'Milestone', 'Phase', 'Target Date', 'Status', ''].map((h, i) => (
+                    <th key={i} style={{ textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--slate)', textTransform: 'uppercase', letterSpacing: '0.8px', padding: '0 10px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {(milestones[p.id] || []).map(m => (
-                  <tr key={m.id}>
+                  <tr
+                    key={m.id}
+                    draggable
+                    onDragStart={() => setDragId(m.id)}
+                    onDragOver={e => { e.preventDefault(); setDragOverId(m.id); }}
+                    onDrop={() => handleDrop(p.id)}
+                    onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                    style={{
+                      opacity: dragId === m.id ? 0.4 : 1,
+                      background: dragOverId === m.id && dragId !== m.id ? 'var(--cream)' : 'transparent',
+                      transition: 'opacity 0.15s, background 0.1s',
+                    }}
+                  >
+                    <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', color: 'var(--border)', cursor: 'grab', fontSize: 16, userSelect: 'none' }}>⠿</td>
                     <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{m.name}</td>
+                    <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', color: 'var(--slate)' }}>
+                      {m.phase_label ? (
+                        <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--border)', color: 'var(--slate)', borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>{m.phase_label}</span>
+                      ) : <span style={{ color: 'var(--border)' }}>—</span>}
+                    </td>
                     <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', color: 'var(--slate)' }}>{m.target_date ? new Date(m.target_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
                     <td style={{ padding: '10px', borderBottom: '1px solid var(--border)' }}>
                       <select value={m.status} onChange={e => updateMilestone(m.id, e.target.value)}
@@ -204,7 +239,7 @@ function AdminProjects({ clientId }) {
                       </select>
                     </td>
                     <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <span onClick={() => { setActiveProject(p); setActiveMilestone(m); setMsForm({ name: m.name, target_date: m.target_date || '', status: m.status, sort_order: m.sort_order || 0 }); setModal('milestone'); }} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600, marginRight: 14 }}>Edit</span>
+                      <span onClick={() => { setActiveProject(p); setActiveMilestone(m); setMsForm({ name: m.name, target_date: m.target_date || '', status: m.status, phase_label: m.phase_label || '', sort_order: m.sort_order || 0 }); setModal('milestone'); }} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600, marginRight: 14 }}>Edit</span>
                       <span onClick={() => deleteMilestone(m.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Remove</span>
                     </td>
                   </tr>
@@ -251,6 +286,7 @@ function AdminProjects({ clientId }) {
             <div style={css.modalTitle}>{activeMilestone ? 'Edit Milestone' : 'Add Milestone'}</div>
             <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: 20 }}>{activeProject?.name}</div>
             <div style={css.formGroup}><label style={css.formLabel}>Milestone Name</label><input style={css.formInput} value={msForm.name} onChange={e => setMsForm({ ...msForm, name: e.target.value })} placeholder="e.g. Design Approved" /></div>
+            <div style={css.formGroup}><label style={css.formLabel}>Phase Label</label><input style={css.formInput} value={msForm.phase_label} onChange={e => setMsForm({ ...msForm, phase_label: e.target.value })} placeholder="e.g. Phase 1, Brand Discovery" /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Target Date</label><input type="date" style={css.formInput} value={msForm.target_date} onChange={e => setMsForm({ ...msForm, target_date: e.target.value })} /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Status</label>
               <select style={css.formSelect} value={msForm.status} onChange={e => setMsForm({ ...msForm, status: e.target.value })}>

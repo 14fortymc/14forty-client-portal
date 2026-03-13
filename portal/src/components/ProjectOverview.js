@@ -105,6 +105,9 @@ export default function ProjectOverview({ projects, milestones }) {
                       {/* Name + date + badge */}
                       <div style={{ paddingTop: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          {m.phase_label && (
+                            <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--border)', color: 'var(--slate)', borderRadius: 4, padding: '2px 7px', flexShrink: 0 }}>{m.phase_label}</span>
+                          )}
                           <span style={{
                             fontSize: 14,
                             fontWeight: m.status === 'upcoming' ? 400 : 600,

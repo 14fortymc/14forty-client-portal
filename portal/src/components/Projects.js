@@ -73,11 +73,15 @@ export default function Projects({ clientId }) {
                   )}
                 </div>
                 <div>
-                  <div style={{
-                    fontSize:14, fontWeight:700,
-                    color: m.status==='active' ? 'var(--orange)' : m.status==='upcoming' ? 'var(--slate)' : 'var(--navy)',
-                    ...(m.status==='upcoming' ? {fontWeight:400} : {})
-                  }}>{m.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {m.phase_label && (
+                      <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--border)', color: 'var(--slate)', borderRadius: 4, padding: '2px 7px', flexShrink: 0 }}>{m.phase_label}</span>
+                    )}
+                    <span style={{
+                      fontSize:14, fontWeight: m.status==='upcoming' ? 400 : 700,
+                      color: m.status==='active' ? 'var(--orange)' : m.status==='upcoming' ? 'var(--slate)' : 'var(--navy)',
+                    }}>{m.name}</span>
+                  </div>
                   <div style={{fontSize:12, color:'var(--slate)', marginTop:2}}>
                     {m.target_date ? new Date(m.target_date).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : ''}
                   </div>
