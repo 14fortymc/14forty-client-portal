@@ -145,6 +145,13 @@ function AdminProjects({ clientId }) {
     fetchProjects();
   };
 
+  const deleteProject = async (id) => {
+    if (!window.confirm('Delete this project and all its milestones? This cannot be undone.')) return;
+    await supabase.from('milestones').delete().eq('project_id', id);
+    await supabase.from('projects').delete().eq('id', id);
+    fetchProjects();
+  };
+
   const handleDrop = async (projectId) => {
     if (!dragId || !dragOverId || dragId === dragOverId) return;
     const ms = [...(milestones[projectId] || [])];
@@ -182,6 +189,7 @@ function AdminProjects({ clientId }) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button style={{ ...css.secondaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setProjectForm({ name: p.name, phase: p.phase || '', progress_pct: p.progress_pct || 0, status: p.status }); setModal('project'); }}>Edit</button>
               <button style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', phase_label: '', sort_order: 0 }); setModal('milestone'); }}>+ Milestone</button>
+              <button style={{ ...css.secondaryBtn, padding: '6px 14px', fontSize: 13, color: '#c0392b', borderColor: '#e8c5c1' }} onClick={() => deleteProject(p.id)}>Delete</button>
             </div>
           </div>
 
