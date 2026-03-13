@@ -8,8 +8,12 @@ import Assets from './components/Assets';
 import Billing from './components/Billing';
 import Calendar from './components/Calendar';
 import AdminPortal from './components/AdminPortal';
+import Home from './components/Home';
+import ChangePassword from './components/ChangePassword';
+import ResetPassword from './components/ResetPassword';
 
 const NAV = [
+  { key: 'home', label: 'Home' },
   { key: 'invoices', label: 'Invoices' },
   { key: 'projects', label: 'Project Status' },
   { key: 'requests', label: 'Requests' },
@@ -19,6 +23,7 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
+  home: 'Home',
   invoices: 'Invoices',
   projects: 'Project Status',
   requests: 'Requests',
@@ -32,9 +37,12 @@ export default function App() {
   const [clientId, setClientId] = useState(null);
   const [clientName, setClientName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [tab, setTab] = useState('invoices');
+  const [passwordChanged, setPasswordChanged] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [tab, setTab] = useState('home');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [passwordReset, setPasswordReset] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -43,7 +51,13 @@ export default function App() {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordReset(true);
+        setLoading(false);
+        return;
+      }
+      setPasswordReset(false);
       setSession(session);
       if (session) loadClient(session.user.id);
       else { setClientId(null); setClientName(''); setIsAdmin(false); setLoading(false); }
@@ -52,16 +66,18 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadClient = async (userId) => {
+  const loadClient = async (uid) => {
     const { data: cu } = await supabase
       .from('client_users')
-      .select('client_id, is_admin, clients(name, company_name)')
-      .eq('user_id', userId)
+      .select('client_id, is_admin, password_changed, clients(name, company_name)')
+      .eq('user_id', uid)
       .single();
 
     if (cu) {
+      setUserId(uid);
       setClientId(cu.client_id);
       setIsAdmin(cu.is_admin || false);
+      setPasswordChanged(cu.password_changed ?? true);
       setClientName(cu.clients?.company_name || cu.clients?.name || '');
       if (!cu.is_admin) loadPendingTasks(cu.client_id);
     }
@@ -87,7 +103,12 @@ export default function App() {
     </div>
   );
 
+  if (passwordReset) return <ResetPassword />;
+
   if (!session) return <Login />;
+
+  // Force password change on first login (non-admin clients only)
+  if (!isAdmin && !passwordChanged) return <ChangePassword userId={userId} />;
 
   // Admin view
   if (isAdmin) return <AdminPortal onSignOut={handleSignOut} accessToken={session?.access_token} />;
@@ -153,6 +174,7 @@ export default function App() {
         </div>
 
         <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
+          {tab === 'home' && <Home clientId={clientId} clientName={clientName} setTab={setTab} />}
           {tab === 'invoices' && <Invoices clientId={clientId} />}
           {tab === 'projects' && <Projects clientId={clientId} />}
           {tab === 'requests' && <Requests clientId={clientId} />}
