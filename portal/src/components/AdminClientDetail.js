@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
+import ProjectTimeline from './ProjectTimeline';
 
 const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
 
@@ -91,6 +92,7 @@ function AdminProjects({ clientId }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [activeProject, setActiveProject] = useState(null);
+  const [activeMilestone, setActiveMilestone] = useState(null);
   const [projectForm, setProjectForm] = useState({ name: '', phase: '', progress_pct: 0, status: 'active' });
   const [msForm, setMsForm] = useState({ name: '', target_date: '', status: 'upcoming', sort_order: 0 });
   const [saving, setSaving] = useState(false);
@@ -120,8 +122,12 @@ function AdminProjects({ clientId }) {
 
   const saveMilestone = async () => {
     setSaving(true);
-    await supabase.from('milestones').insert({ ...msForm, project_id: activeProject.id });
-    setModal(null); setMsForm({ name: '', target_date: '', status: 'upcoming', sort_order: 0 });
+    if (activeMilestone) {
+      await supabase.from('milestones').update(msForm).eq('id', activeMilestone.id);
+    } else {
+      await supabase.from('milestones').insert({ ...msForm, project_id: activeProject.id });
+    }
+    setModal(null); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', sort_order: 0 });
     await fetchProjects(); setSaving(false);
   };
 
@@ -154,7 +160,7 @@ function AdminProjects({ clientId }) {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button style={{ ...css.secondaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setProjectForm({ name: p.name, phase: p.phase || '', progress_pct: p.progress_pct || 0, status: p.status }); setModal('project'); }}>Edit</button>
-              <button style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setModal('milestone'); }}>+ Milestone</button>
+              <button style={{ ...css.primaryBtn, padding: '6px 14px', fontSize: 13 }} onClick={() => { setActiveProject(p); setActiveMilestone(null); setMsForm({ name: '', target_date: '', status: 'upcoming', sort_order: 0 }); setModal('milestone'); }}>+ Milestone</button>
             </div>
           </div>
 
@@ -193,7 +199,8 @@ function AdminProjects({ clientId }) {
                         <option value="completed">Completed</option>
                       </select>
                     </td>
-                    <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', textAlign: 'right' }}>
+                    <td style={{ padding: '10px', borderBottom: '1px solid var(--border)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <span onClick={() => { setActiveProject(p); setActiveMilestone(m); setMsForm({ name: m.name, target_date: m.target_date || '', status: m.status, sort_order: m.sort_order || 0 }); setModal('milestone'); }} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600, marginRight: 14 }}>Edit</span>
                       <span onClick={() => deleteMilestone(m.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Remove</span>
                     </td>
                   </tr>
@@ -201,6 +208,9 @@ function AdminProjects({ clientId }) {
               </tbody>
             </table>
           )}
+
+          {/* Timeline — visual date-based overview */}
+          <ProjectTimeline milestones={milestones[p.id] || []} />
         </div>
       ))}
 
@@ -230,11 +240,11 @@ function AdminProjects({ clientId }) {
         </div>
       )}
 
-      {/* Milestone Modal */}
+      {/* Milestone Modal — add or edit */}
       {modal === 'milestone' && (
-        <div style={css.overlay} onClick={() => setModal(null)}>
+        <div style={css.overlay} onClick={() => { setModal(null); setActiveMilestone(null); }}>
           <div style={css.modal} onClick={e => e.stopPropagation()}>
-            <div style={css.modalTitle}>Add Milestone</div>
+            <div style={css.modalTitle}>{activeMilestone ? 'Edit Milestone' : 'Add Milestone'}</div>
             <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: 20 }}>{activeProject?.name}</div>
             <div style={css.formGroup}><label style={css.formLabel}>Milestone Name</label><input style={css.formInput} value={msForm.name} onChange={e => setMsForm({ ...msForm, name: e.target.value })} placeholder="e.g. Design Approved" /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Target Date</label><input type="date" style={css.formInput} value={msForm.target_date} onChange={e => setMsForm({ ...msForm, target_date: e.target.value })} /></div>
@@ -247,8 +257,8 @@ function AdminProjects({ clientId }) {
             </div>
             <div style={css.formGroup}><label style={css.formLabel}>Sort Order</label><input type="number" style={css.formInput} value={msForm.sort_order} onChange={e => setMsForm({ ...msForm, sort_order: parseInt(e.target.value) })} /></div>
             <div style={css.modalActions}>
-              <button style={css.btnCancel} onClick={() => setModal(null)}>Cancel</button>
-              <button style={css.btnSubmit} onClick={saveMilestone} disabled={saving}>{saving ? 'Saving…' : 'Add Milestone'}</button>
+              <button style={css.btnCancel} onClick={() => { setModal(null); setActiveMilestone(null); }}>Cancel</button>
+              <button style={css.btnSubmit} onClick={saveMilestone} disabled={saving}>{saving ? 'Saving…' : activeMilestone ? 'Save Changes' : 'Add Milestone'}</button>
             </div>
           </div>
         </div>

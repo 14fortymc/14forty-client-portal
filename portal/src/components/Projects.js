@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
+import ProjectTimeline from './ProjectTimeline';
 
 export default function Projects({ clientId }) {
   const [projects, setProjects] = useState([]);
@@ -53,7 +54,7 @@ export default function Projects({ clientId }) {
               <div style={{height:'100%', background:'var(--blue)', borderRadius:3, width:`${project.progress_pct || 0}%`}}></div>
             </div>
 
-            {/* Milestones */}
+            {/* Milestones — vertical step list */}
             {ms.map((m, i) => (
               <div key={m.id} style={{display:'flex', gap:16, alignItems:'flex-start', paddingBottom: i < ms.length-1 ? 20 : 0}}>
                 <div style={{display:'flex', flexDirection:'column', alignItems:'center'}}>
@@ -81,6 +82,9 @@ export default function Projects({ clientId }) {
                 </div>
               </div>
             ))}
+
+            {/* Horizontal timeline — holistic date-based view */}
+            <ProjectTimeline milestones={ms} />
           </div>
         );
       })}
