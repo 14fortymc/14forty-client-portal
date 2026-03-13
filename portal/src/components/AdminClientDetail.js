@@ -185,15 +185,22 @@ function AdminProjects({ clientId }) {
             </div>
           </div>
 
-          {/* Progress */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--slate)', marginBottom: 6 }}>
-              <span>Progress</span><span>{p.progress_pct || 0}%</span>
-            </div>
-            <div style={{ height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'var(--blue)', width: `${p.progress_pct || 0}%` }}></div>
-            </div>
-          </div>
+          {/* Progress — auto-calculated from completed milestones */}
+          {(() => {
+            const ms = milestones[p.id] || [];
+            const pct = ms.length > 0 ? Math.round((ms.filter(m => m.status === 'completed').length / ms.length) * 100) : 0;
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--slate)', marginBottom: 6 }}>
+                  <span>Progress</span>
+                  <span>{ms.filter(m => m.status === 'completed').length} of {ms.length} milestone{ms.length !== 1 ? 's' : ''} completed · {pct}%</span>
+                </div>
+                <div style={{ height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', background: 'var(--blue)', width: `${pct}%`, transition: 'width 0.4s' }}></div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Milestones */}
           {(milestones[p.id] || []).length === 0 ? (
@@ -260,10 +267,6 @@ function AdminProjects({ clientId }) {
             <div style={css.modalTitle}>{activeProject ? 'Edit Project' : 'New Project'}</div>
             <div style={css.formGroup}><label style={css.formLabel}>Project Name</label><input style={css.formInput} value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} placeholder="e.g. Website Redesign" /></div>
             <div style={css.formGroup}><label style={css.formLabel}>Phase / Description</label><input style={css.formInput} value={projectForm.phase} onChange={e => setProjectForm({ ...projectForm, phase: e.target.value })} placeholder="e.g. Phase 2 of 4 — Design" /></div>
-            <div style={css.formGroup}>
-              <label style={css.formLabel}>Progress ({projectForm.progress_pct}%)</label>
-              <input type="range" min="0" max="100" value={projectForm.progress_pct} onChange={e => setProjectForm({ ...projectForm, progress_pct: parseInt(e.target.value) })} style={{ width: '100%' }} />
-            </div>
             <div style={css.formGroup}><label style={css.formLabel}>Status</label>
               <select style={css.formSelect} value={projectForm.status} onChange={e => setProjectForm({ ...projectForm, status: e.target.value })}>
                 <option value="active">Active</option>

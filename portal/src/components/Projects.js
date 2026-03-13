@@ -41,6 +41,7 @@ export default function Projects({ clientId }) {
       {projects.map(project => {
         const ms = milestones[project.id] || [];
         const doneCount = ms.filter(m => m.status === 'completed').length;
+        const progressPct = ms.length > 0 ? Math.round((doneCount / ms.length) * 100) : 0;
         return (
           <div key={project.id} style={{...css.card, marginBottom: 20}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20}}>
@@ -51,9 +52,14 @@ export default function Projects({ clientId }) {
               <span style={{...css.pill, ...css.pill_due}}>In Progress</span>
             </div>
 
-            {/* Progress bar */}
-            <div style={{height:5, background:'var(--border)', borderRadius:3, marginBottom:28, overflow:'hidden'}}>
-              <div style={{height:'100%', background:'var(--blue)', borderRadius:3, width:`${project.progress_pct || 0}%`}}></div>
+            {/* Progress bar — auto-calculated from completed milestones */}
+            <div style={{marginBottom:28}}>
+              <div style={{height:5, background:'var(--border)', borderRadius:3, overflow:'hidden'}}>
+                <div style={{height:'100%', background:'var(--blue)', borderRadius:3, width:`${progressPct}%`, transition:'width 0.4s'}}></div>
+              </div>
+              {ms.length > 0 && (
+                <div style={{fontSize:11, color:'var(--slate)', marginTop:6}}>{doneCount} of {ms.length} milestone{ms.length !== 1 ? 's' : ''} completed</div>
+              )}
             </div>
 
             {/* Milestones — vertical step list */}
