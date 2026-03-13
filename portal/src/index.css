@@ -1,0 +1,42 @@
+@font-face {
+  font-family: 'GaramondPro';
+  src: url('./fonts/GaramondPro-Bold.otf') format('opentype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Helvetica';
+  src: url('./fonts/Helvetica.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Helvetica';
+  src: url('./fonts/Helvetica-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Helvetica';
+  src: url('./fonts/Helvetica-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blue: #497891;
+  --blue-light: #e5eef3;
+  --orange: #ee9d4c;
+  --orange-light: #fdf3e7;
+  --navy: #1e293b;
+  --cream: #f0ede4;
+  --slate: #67768e;
+  --white: #ffffff;
+  --border: #dedad3;
+  --shadow: 0 1px 3px rgba(30,41,59,0.07), 0 4px 14px rgba(30,41,59,0.05);
+}
+
+body {
+  font-family: 'Helvetica', Helvetica, Arial, sans-serif;
+  background: var(--cream);
+  color: var(--navy);
+  min-height: 100vh;
+}
