@@ -1,12 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 
 export default function ResetPassword() {
+  const [ready, setReady] = useState(false);
   const [form, setForm] = useState({ password: '', confirm: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setReady(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSubmit = async () => {
     setError('');
@@ -44,6 +54,12 @@ export default function ResetPassword() {
     await supabase.auth.signOut();
     // onAuthStateChange in App.js will show the login screen
   };
+
+  if (!ready) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', fontFamily: 'inherit', color: 'var(--slate)', fontSize: 14 }}>
+      Loading…
+    </div>
+  );
 
   return (
     <div style={{

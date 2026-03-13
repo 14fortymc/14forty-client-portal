@@ -45,23 +45,10 @@ export default function App() {
   const [passwordReset, setPasswordReset] = useState(false);
 
   useEffect(() => {
-    // Detect password recovery flow from URL (hash or query param)
-    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
-    const queryParams = new URLSearchParams(window.location.search);
-    const isRecovery =
-      hashParams.get('type') === 'recovery' || queryParams.get('type') === 'recovery';
-
-    if (isRecovery) {
-      setPasswordReset(true);
-      setLoading(false);
-    }
-
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isRecovery) {
-        setSession(session);
-        if (session) loadClient(session.user.id);
-        else setLoading(false);
-      }
+      setSession(session);
+      if (session) loadClient(session.user.id);
+      else setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
