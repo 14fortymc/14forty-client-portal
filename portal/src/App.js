@@ -7,6 +7,7 @@ import Requests from './components/Requests';
 import Assets from './components/Assets';
 import Billing from './components/Billing';
 import Calendar from './components/Calendar';
+import AdminPortal from './components/AdminPortal';
 
 const NAV = [
   { key: 'invoices', label: 'Invoices' },
@@ -30,6 +31,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [clientName, setClientName] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState('invoices');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) loadClient(session.user.id);
-      else { setClientId(null); setClientName(''); setLoading(false); }
+      else { setClientId(null); setClientName(''); setIsAdmin(false); setLoading(false); }
     });
 
     return () => subscription.unsubscribe();
@@ -53,14 +55,15 @@ export default function App() {
   const loadClient = async (userId) => {
     const { data: cu } = await supabase
       .from('client_users')
-      .select('client_id, clients(name, company_name)')
+      .select('client_id, is_admin, clients(name, company_name)')
       .eq('user_id', userId)
       .single();
 
     if (cu) {
       setClientId(cu.client_id);
+      setIsAdmin(cu.is_admin || false);
       setClientName(cu.clients?.company_name || cu.clients?.name || '');
-      loadPendingTasks(cu.client_id);
+      if (!cu.is_admin) loadPendingTasks(cu.client_id);
     }
     setLoading(false);
   };
@@ -86,6 +89,9 @@ export default function App() {
 
   if (!session) return <Login />;
 
+  // Admin view
+  if (isAdmin) return <AdminPortal onSignOut={handleSignOut} />;
+
   if (!clientId) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', fontFamily: 'inherit' }}>
       <div style={{ textAlign: 'center' }}>
@@ -100,7 +106,6 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
       <aside style={{ width: 248, minWidth: 248, background: 'var(--navy)', padding: '32px 0', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '0 24px 28px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
           14Forty
@@ -138,7 +143,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: 'var(--navy)' }}>{PAGE_TITLES[tab]}</div>
