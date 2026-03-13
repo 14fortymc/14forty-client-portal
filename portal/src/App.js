@@ -90,7 +90,7 @@ export default function App() {
   if (!session) return <Login />;
 
   // Admin view
-  if (isAdmin) return <AdminPortal onSignOut={handleSignOut} />;
+  if (isAdmin) return <AdminPortal onSignOut={handleSignOut} accessToken={session?.access_token} />;
 
   if (!clientId) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', fontFamily: 'inherit' }}>
