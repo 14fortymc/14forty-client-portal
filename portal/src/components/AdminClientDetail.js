@@ -298,11 +298,12 @@ function AdminInvoices({ clientId }) {
 }
 
 // ── FEEDBACK TASKS ─────────────────────────────────────────
+// ── FEEDBACK TASKS ─────────────────────────────────────────
 function AdminFeedbackTasks({ clientId }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', due_date: '' });
+  const [form, setForm] = useState({ title: '', description: '', due_date: '', markup_url: '', drive_url: '', loom_url: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchTasks(); }, [clientId]);
@@ -316,11 +317,27 @@ function AdminFeedbackTasks({ clientId }) {
   const saveTask = async () => {
     setSaving(true);
     await supabase.from('feedback_tasks').insert({ ...form, client_id: clientId, status: 'awaiting' });
-    setModal(false); setForm({ title: '', description: '', due_date: '' });
-    await fetchTasks(); setSaving(false);
+    setModal(false);
+    setForm({ title: '', description: '', due_date: '', markup_url: '', drive_url: '', loom_url: '' });
+    await fetchTasks();
+    setSaving(false);
   };
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+  const LinkBadge = ({ url, label, color, bg }) => {
+    if (!url) return null;
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        fontSize: 12, fontWeight: 700, color, background: bg,
+        borderRadius: 6, padding: '4px 10px', textDecoration: 'none',
+        marginRight: 6, marginTop: 8,
+      }}>
+        {label} ↗
+      </a>
+    );
+  };
 
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
@@ -337,7 +354,12 @@ function AdminFeedbackTasks({ clientId }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{task.title}</div>
-                <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5, marginBottom: 8 }}>{task.description}</div>
+                <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5, marginBottom: 4 }}>{task.description}</div>
+                <div style={{ marginBottom: 8 }}>
+                  <LinkBadge url={task.markup_url} label="View on Markup.io" color="#6c42e8" bg="#f0ebff" />
+                  <LinkBadge url={task.drive_url} label="Open in Drive" color="#1a73e8" bg="#e8f0fe" />
+                  <LinkBadge url={task.loom_url} label="Watch Loom" color="#625df5" bg="#eeeeff" />
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--slate)' }}>Due {fmtDate(task.due_date)} · Sent {fmtDate(task.created_at)}</div>
                 {task.status === 'completed' && task.response && (
                   <div style={{ marginTop: 12, padding: 12, background: 'var(--blue-light)', borderRadius: 8 }}>
@@ -357,11 +379,38 @@ function AdminFeedbackTasks({ clientId }) {
 
       {modal && (
         <div style={css.overlay} onClick={() => setModal(false)}>
-          <div style={css.modal} onClick={e => e.stopPropagation()}>
+          <div style={{ ...css.modal, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={css.modalTitle}>Send Feedback Request</div>
-            <div style={css.formGroup}><label style={css.formLabel}>Title</label><input style={css.formInput} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Review homepage copy draft" /></div>
-            <div style={css.formGroup}><label style={css.formLabel}>Description</label><textarea style={css.formTextarea} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe what you need the client to review or approve…" /></div>
-            <div style={css.formGroup}><label style={css.formLabel}>Due Date</label><input type="date" style={css.formInput} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></div>
+            <div style={css.formGroup}>
+              <label style={css.formLabel}>Title</label>
+              <input style={css.formInput} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Review homepage copy draft" />
+            </div>
+            <div style={css.formGroup}>
+              <label style={css.formLabel}>Description</label>
+              <textarea style={css.formTextarea} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe what you need the client to review or approve…" />
+            </div>
+            <div style={css.formGroup}>
+              <label style={css.formLabel}>Due Date</label>
+              <input type="date" style={css.formInput} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0 16px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--slate)', marginTop: 16, marginBottom: 14 }}>Review Links <span style={{ color: 'var(--border)', fontWeight: 400 }}>— optional</span></div>
+            </div>
+
+            <div style={css.formGroup}>
+              <label style={{ ...css.formLabel, color: '#6c42e8' }}>Markup.io URL</label>
+              <input style={css.formInput} value={form.markup_url} onChange={e => setForm({ ...form, markup_url: e.target.value })} placeholder="https://markup.io/v/..." />
+            </div>
+            <div style={css.formGroup}>
+              <label style={{ ...css.formLabel, color: '#1a73e8' }}>Google Drive URL</label>
+              <input style={css.formInput} value={form.drive_url} onChange={e => setForm({ ...form, drive_url: e.target.value })} placeholder="https://drive.google.com/..." />
+            </div>
+            <div style={css.formGroup}>
+              <label style={{ ...css.formLabel, color: '#625df5' }}>Loom URL</label>
+              <input style={css.formInput} value={form.loom_url} onChange={e => setForm({ ...form, loom_url: e.target.value })} placeholder="https://www.loom.com/share/..." />
+            </div>
+
             <div style={css.modalActions}>
               <button style={css.btnCancel} onClick={() => setModal(false)}>Cancel</button>
               <button style={css.btnSubmit} onClick={saveTask} disabled={saving}>{saving ? 'Sending…' : 'Send Request'}</button>
