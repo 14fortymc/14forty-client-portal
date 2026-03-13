@@ -25,6 +25,10 @@ export default function AdminClients({ onSelectClient, accessToken }) {
 
   const createNewClient = async () => {
     if (!form.name || !form.billing_email || !form.temp_password) return;
+    if (!accessToken) {
+      setResult({ success: false, message: 'Session expired — please refresh and try again.' });
+      return;
+    }
     setSaving(true);
     setResult(null);
 
@@ -34,6 +38,7 @@ export default function AdminClients({ onSelectClient, accessToken }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           name: form.name,
