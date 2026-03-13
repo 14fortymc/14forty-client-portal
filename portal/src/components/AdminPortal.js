@@ -9,7 +9,7 @@ const NAV = [
   { key: 'meetings', label: 'Meeting Requests' },
 ];
 
-export default function AdminPortal({ onSignOut }) {
+export default function AdminPortal({ onSignOut, accessToken }) {
   const [tab, setTab] = useState('clients');
   const [selectedClient, setSelectedClient] = useState(null);
   const [counts, setCounts] = useState({ requests: 0, meetings: 0 });
@@ -81,7 +81,7 @@ export default function AdminPortal({ onSignOut }) {
           {selectedClient ? (
             <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} />
           ) : tab === 'clients' ? (
-            <AdminClients onSelectClient={setSelectedClient} />
+            <AdminClients onSelectClient={setSelectedClient} accessToken={accessToken} />
           ) : tab === 'requests' ? (
             <AdminWorkRequests />
           ) : (
