@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { css } from '../styles/shared';
+
+// Admin-only client using service role key — bypasses RLS, never affects user session
+const adminSupabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_SERVICE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 export default function AdminClients({ onSelectClient }) {
   const [clients, setClients] = useState([]);
@@ -8,7 +16,7 @@ export default function AdminClients({ onSelectClient }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' });
   const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState(null); // { success, message }
+  const [result, setResult] = useState(null);
 
   useEffect(() => { fetchClients(); }, []);
 
@@ -21,26 +29,24 @@ export default function AdminClients({ onSelectClient }) {
     setLoading(false);
   };
 
-  const createClient = async () => {
+  const createNewClient = async () => {
     if (!form.name || !form.billing_email || !form.temp_password) return;
     setSaving(true);
     setResult(null);
 
     try {
-      // 1. Create auth user using Supabase JS client (handles ID correctly)
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // 1. Create auth user via service role — never touches your session
+      const { data: userData, error: userError } = await adminSupabase.auth.admin.createUser({
         email: form.billing_email,
         password: form.temp_password,
-        options: { emailRedirectTo: window.location.origin },
+        email_confirm: true,
       });
 
-      if (signUpError) throw new Error(signUpError.message);
+      if (userError) throw new Error(userError.message);
+      const newUserId = userData.user.id;
 
-      const newUserId = signUpData?.user?.id;
-      if (!newUserId) throw new Error('Could not get user ID. The email may already be registered.');
-
-      // 2. Insert the client record
-      const { data: clientData, error: clientError } = await supabase
+      // 2. Insert client record
+      const { data: clientData, error: clientError } = await adminSupabase
         .from('clients')
         .insert({
           name: form.name,
@@ -54,7 +60,7 @@ export default function AdminClients({ onSelectClient }) {
       if (clientError) throw new Error('Client record failed: ' + clientError.message);
 
       // 3. Link user to client
-      const { error: linkError } = await supabase
+      const { error: linkError } = await adminSupabase
         .from('client_users')
         .insert({
           user_id: newUserId,
@@ -76,7 +82,12 @@ export default function AdminClients({ onSelectClient }) {
     setSaving(false);
   };
 
-  const closeModal = () => { setModal(false); setResult(null); setForm({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' }); };
+  const closeModal = () => {
+    setModal(false);
+    setResult(null);
+    setForm({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' });
+  };
+
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading clients…</div>;
@@ -137,12 +148,14 @@ export default function AdminClients({ onSelectClient }) {
                   color: result.success ? 'var(--blue)' : '#dc2626',
                   fontSize: 14, lineHeight: 1.5,
                 }}>
-                  {result.success ? `✓ Account created for ${result.email}. Share the portal URL and their temporary password with them directly.` : result.message}
+                  {result.success
+                    ? `✓ Account created for ${result.email}. Share the portal URL and their temporary password with them directly.`
+                    : result.message}
                 </div>
                 {result.success && (
                   <div style={{ background: 'var(--cream)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--slate)', marginBottom: 8 }}>Share with client</div>
-                    <div style={{ fontSize: 13, color: 'var(--navy)', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 13, color: 'var(--navy)', lineHeight: 1.8 }}>
                       <strong>Portal URL:</strong> {window.location.origin}<br />
                       <strong>Email:</strong> {result.email}<br />
                       <strong>Temp Password:</strong> (the one you just set)
@@ -194,7 +207,7 @@ export default function AdminClients({ onSelectClient }) {
                   <button style={css.btnCancel} onClick={closeModal}>Cancel</button>
                   <button
                     style={{ ...css.btnSubmit, opacity: (!form.name || !form.billing_email || !form.temp_password) ? 0.5 : 1 }}
-                    onClick={createClient}
+                    onClick={createNewClient}
                     disabled={saving || !form.name || !form.billing_email || !form.temp_password}>
                     {saving ? 'Creating Account…' : 'Create Client & Account'}
                   </button>
