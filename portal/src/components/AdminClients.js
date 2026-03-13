@@ -3,40 +3,6 @@ import { supabase } from '../lib/supabase';
 import { css } from '../styles/shared';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
-const SERVICE_KEY = process.env.REACT_APP_SUPABASE_SERVICE_KEY;
-
-// Create auth user via REST API using service role key — never touches your session
-const adminCreateUser = async (email, password) => {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SERVICE_KEY,
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-    },
-    body: JSON.stringify({ email, password, email_confirm: true }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || data.msg || 'Failed to create user');
-  return data;
-};
-
-// Insert into DB bypassing RLS using service role key
-const adminInsert = async (table, row) => {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SERVICE_KEY,
-      'Authorization': `Bearer ${SERVICE_KEY}`,
-      'Prefer': 'return=representation',
-    },
-    body: JSON.stringify(row),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || data.hint || `Insert into ${table} failed`);
-  return Array.isArray(data) ? data[0] : data;
-};
 
 export default function AdminClients({ onSelectClient }) {
   const [clients, setClients] = useState([]);
@@ -63,26 +29,25 @@ export default function AdminClients({ onSelectClient }) {
     setResult(null);
 
     try {
-      // 1. Create auth user via service role REST API — never touches your session
-      const userData = await adminCreateUser(form.billing_email, form.temp_password);
-      const newUserId = userData.id;
-      if (!newUserId) throw new Error('Could not get user ID from signup response');
-
-      // 2. Insert client record via service role REST API
-      const clientData = await adminInsert('clients', {
-        name: form.name,
-        company_name: form.company_name,
-        billing_email: form.billing_email,
-        billing_address: form.billing_address,
+      // Call Edge Function — runs server-side with service role, never touches your session
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-client-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: form.name,
+          company_name: form.company_name,
+          billing_email: form.billing_email,
+          billing_address: form.billing_address,
+          temp_password: form.temp_password,
+        }),
       });
 
-      // 3. Link user to client
-      await adminInsert('client_users', {
-        user_id: newUserId,
-        client_id: clientData.id,
-        role: 'client',
-        is_admin: false,
-      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to create client');
 
       setResult({ success: true, email: form.billing_email });
       setForm({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' });
