@@ -859,6 +859,18 @@ function AdminWorkRequestsDetail({ clientId }) {
                 {' · '}{fmtDate(r.created_at)}
               </div>
               {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5 }}>{r.detail}</div>}
+              {r.asana_task_url && (
+                <div style={{ marginTop: 6 }}>
+                  <a href={r.asana_task_url} target="_blank" rel="noopener noreferrer" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 12, fontWeight: 700, color: '#f06a35', background: '#fff4f0',
+                    borderRadius: 6, padding: '4px 10px', textDecoration: 'none',
+                    border: '1px solid #f06a3522',
+                  }}>
+                    View in Asana ↗
+                  </a>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

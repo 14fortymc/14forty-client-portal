@@ -20,7 +20,7 @@ export default function Requests({ clientId }) {
     const [{ data: t }, { data: w }, { data: c }] = await Promise.all([
       supabase.from('feedback_tasks').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
       supabase.from('work_requests').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
-      supabase.from('clients').select('hosting_package, service_agreement').eq('id', clientId).single(),
+      supabase.from('clients').select('hosting_package, service_agreement, name, company_name').eq('id', clientId).single(),
     ]);
     setTasks(t || []);
     setWorkRequests(w || []);
@@ -40,7 +40,7 @@ export default function Requests({ clientId }) {
     if (!form.subject || !requestCategory) return;
     setSaving(true);
     const billing_type = computeBillingType();
-    await supabase.from('work_requests').insert({
+    const { data: inserted } = await supabase.from('work_requests').insert({
       client_id: clientId,
       request_category: requestCategory,
       type: form.request_type,
@@ -48,7 +48,28 @@ export default function Requests({ clientId }) {
       detail: form.detail,
       billing_type,
       hourly_rate: 125,
-    });
+    }).select('id').single();
+
+    // Fire-and-forget Asana task creation — don't block submission if it fails
+    if (inserted?.id) {
+      const client_name = clientInfo?.company_name || clientInfo?.name || '';
+      const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+      fetch(`${supabaseUrl}/functions/v1/create-asana-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          work_request_id: inserted.id,
+          client_name,
+          subject: form.subject,
+          request_category: requestCategory,
+          request_type: form.request_type,
+          billing_type,
+          description: form.detail,
+          portal_url: window.location.origin,
+        }),
+      }).catch(err => console.error('Asana task creation failed:', err));
+    }
+
     setModal(null);
     setRequestCategory('');
     setForm({ request_type: '', subject: '', detail: '' });
