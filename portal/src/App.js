@@ -45,21 +45,22 @@ export default function App() {
   const [passwordReset, setPasswordReset] = useState(false);
 
   useEffect(() => {
-    // Detect recovery links before getSession() processes them — prevents the portal
-    // from flashing visible while we wait for the PASSWORD_RECOVERY event.
+    // Use a mutable flag (not state) so the onAuthStateChange closure always
+    // reads the latest value without stale-closure issues.
+    const recovery = { active: false };
+
+    // Check the URL immediately — Supabase appends #type=recovery to the
+    // redirectTo URL when the user clicks the recovery email link.
     const hash = window.location.hash;
     const searchParams = new URLSearchParams(window.location.search);
-    const isRecoveryUrl =
-      hash.includes('type=recovery') ||
-      searchParams.get('type') === 'recovery';
-
-    if (isRecoveryUrl) {
+    if (hash.includes('type=recovery') || searchParams.get('type') === 'recovery') {
+      recovery.active = true;
       setPasswordReset(true);
       setLoading(false);
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isRecoveryUrl) return; // wait for PASSWORD_RECOVERY event
+      if (recovery.active) return; // recovery event will take over
       setSession(session);
       if (session) loadClient(session.user.id);
       else setLoading(false);
@@ -67,10 +68,25 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
+        recovery.active = true;
         setPasswordReset(true);
         setLoading(false);
         return;
       }
+
+      // SIGNED_OUT always clears recovery mode (user finished reset and signed out).
+      if (event === 'SIGNED_OUT') {
+        recovery.active = false;
+        setPasswordReset(false);
+        setSession(null);
+        setClientId(null); setClientName(''); setIsAdmin(false); setLoading(false);
+        return;
+      }
+
+      // Block any other event (e.g. SIGNED_IN that Supabase fires alongside
+      // PASSWORD_RECOVERY) from overriding recovery mode.
+      if (recovery.active) return;
+
       setPasswordReset(false);
       setSession(session);
       if (session) loadClient(session.user.id);
