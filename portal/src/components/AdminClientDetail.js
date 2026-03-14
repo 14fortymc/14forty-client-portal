@@ -878,8 +878,10 @@ function AdminWorkRequestsDetail({ clientId }) {
                 <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
                   style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   <option value="open">Open</option>
+                  <option value="on_hold">On Hold</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
               {deleteConfirm === r.id ? (

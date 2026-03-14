@@ -309,8 +309,8 @@ export default function Requests({ clientId }) {
                   </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                     {billingBadge(r.billing_type)}
-                    <span style={{ ...css.pill, ...(r.status === 'completed' ? css.pill_paid : r.status === 'in_progress' ? css.pill_awaiting : css.pill_due) }}>
-                      {r.status === 'in_progress' ? 'In Progress' : r.status ? r.status.charAt(0).toUpperCase() + r.status.slice(1) : 'Open'}
+                    <span style={{ ...css.pill, ...(r.status === 'completed' ? css.pill_paid : r.status === 'in_progress' ? css.pill_awaiting : r.status === 'on_hold' ? css.pill_on_hold : r.status === 'rejected' ? css.pill_rejected : css.pill_due) }}>
+                      {r.status === 'in_progress' ? 'In Progress' : r.status === 'on_hold' ? 'On Hold' : r.status === 'rejected' ? 'Rejected' : r.status === 'completed' ? 'Completed' : 'Open'}
                     </span>
                   </div>
                 </div>

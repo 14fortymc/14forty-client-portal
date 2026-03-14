@@ -29,6 +29,8 @@ export const css = {
   pill_completed: { background: 'var(--blue-light)', color: 'var(--blue)' },
   pill_awaiting: { background: '#f3f0fb', color: '#7c5cbf' },
   pill_in_progress: { background: 'var(--orange-light)', color: 'var(--orange)' },
+  pill_on_hold: { background: '#eef0f2', color: 'var(--slate)' },
+  pill_rejected: { background: '#fee2e2', color: '#dc2626' },
 
   // Buttons
   primaryBtn: { background: 'var(--orange)', color: '#fff', border: 'none', borderRadius: 7, padding: '10px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
