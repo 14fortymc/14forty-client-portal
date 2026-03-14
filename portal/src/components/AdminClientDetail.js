@@ -4,7 +4,7 @@ import { css } from '../styles/shared';
 import ProjectTimeline from './ProjectTimeline';
 import ProjectOverview from './ProjectOverview';
 
-const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests'];
+const TABS = ['Projects', 'Invoices', 'Feedback Tasks', 'Assets', 'Work Requests', 'Account Settings'];
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 
@@ -84,6 +84,7 @@ export default function AdminClientDetail({ client, accessToken, onClientUpdate 
       {tab === 'Feedback Tasks' && <AdminFeedbackTasks clientId={client.id} />}
       {tab === 'Assets' && <AdminAssets clientId={client.id} />}
       {tab === 'Work Requests' && <AdminWorkRequestsDetail clientId={client.id} />}
+      {tab === 'Account Settings' && <AdminAccountSettings client={clientData} onUpdate={(updates) => { setClientData({ ...clientData, ...updates }); onClientUpdate?.(updates); }} />}
 
       {/* Edit Client Modal */}
       {editModal && (
@@ -800,6 +801,7 @@ function AdminWorkRequestsDetail({ clientId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [actualHoursEdit, setActualHoursEdit] = useState({});
 
   useEffect(() => { fetchRequests(); }, [clientId]);
 
@@ -814,6 +816,14 @@ function AdminWorkRequestsDetail({ clientId }) {
     fetchRequests();
   };
 
+  const saveActualHours = async (id) => {
+    const hrs = parseFloat(actualHoursEdit[id]);
+    if (isNaN(hrs)) return;
+    await supabase.from('work_requests').update({ actual_hours: hrs }).eq('id', id);
+    setActualHoursEdit(prev => { const n = { ...prev }; delete n[id]; return n; });
+    fetchRequests();
+  };
+
   const deleteRequest = async (id) => {
     await supabase.from('work_requests').delete().eq('id', id);
     setDeleteConfirm(null);
@@ -822,37 +832,172 @@ function AdminWorkRequestsDetail({ clientId }) {
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
 
+  const billingBadge = (billing_type) => {
+    if (!billing_type) return null;
+    const styles = {
+      included: { background: 'var(--blue-light)', color: 'var(--blue)' },
+      hourly: { background: 'var(--orange-light)', color: 'var(--orange)' },
+      flat_rate: { background: '#dcfce7', color: '#16a34a' },
+    };
+    const labels = { included: 'Included', hourly: 'Hourly', flat_rate: 'Flat Rate' };
+    return <span style={{ ...css.pill, ...styles[billing_type] }}>{labels[billing_type]}</span>;
+  };
+
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {requests.length === 0 && <div style={{ ...css.card, textAlign: 'center', color: 'var(--slate)', fontSize: 14 }}>No work requests from this client yet.</div>}
       {requests.map(r => (
-        <div key={r.id} style={{ ...css.card, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{r.subject}</div>
-            <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: r.detail ? 8 : 0 }}>{r.type} · {fmtDate(r.created_at)}</div>
-            {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5 }}>{r.detail}</div>}
+        <div key={r.id} style={{ ...css.card, gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{r.subject}</div>
+              <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: r.detail ? 8 : 0 }}>
+                {r.request_category === 'website_update' ? 'Website Update' : r.request_category === 'ad_hoc' ? 'Ad Hoc Work' : ''}
+                {r.type ? ` · ${r.type}` : ''}
+                {' · '}{fmtDate(r.created_at)}
+              </div>
+              {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5 }}>{r.detail}</div>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {billingBadge(r.billing_type)}
+                <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
+                  style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              {deleteConfirm === r.id ? (
+                <span>
+                  <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
+                  <span onClick={() => deleteRequest(r.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
+                  <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+                </span>
+              ) : (
+                <span onClick={() => setDeleteConfirm(r.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
-            <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
-              style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-            {deleteConfirm === r.id ? (
-              <span>
-                <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
-                <span onClick={() => deleteRequest(r.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
-                <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
-              </span>
-            ) : (
-              <span onClick={() => setDeleteConfirm(r.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
-            )}
-          </div>
+
+          {/* Log actual hours */}
+          {r.status === 'completed' && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, color: 'var(--slate)', fontWeight: 700 }}>Actual Hours:</span>
+              {r.actual_hours != null && actualHoursEdit[r.id] === undefined ? (
+                <>
+                  <span style={{ fontSize: 13 }}>{r.actual_hours} hrs</span>
+                  <span onClick={() => setActualHoursEdit(prev => ({ ...prev, [r.id]: String(r.actual_hours) }))} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="number" step="0.25" min="0"
+                    placeholder="0.00"
+                    value={actualHoursEdit[r.id] ?? ''}
+                    onChange={e => setActualHoursEdit(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    style={{ width: 80, border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)' }}
+                  />
+                  <button onClick={() => saveActualHours(r.id)} style={{ ...css.payBtn, padding: '4px 12px', fontSize: 12 }}>Save</button>
+                  {r.actual_hours != null && <span onClick={() => setActualHoursEdit(prev => { const n = { ...prev }; delete n[r.id]; return n; })} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Cancel</span>}
+                </>
+              )}
+            </div>
+          )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── ACCOUNT SETTINGS ──────────────────────────────────────
+function AdminAccountSettings({ client, onUpdate }) {
+  const [form, setForm] = useState({
+    hosting_package: client.hosting_package || 'none',
+    service_agreement: client.service_agreement || false,
+    service_agreement_monthly_rate: client.service_agreement_monthly_rate || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const updates = {
+      hosting_package: form.hosting_package,
+      service_agreement: form.service_agreement,
+      service_agreement_monthly_rate: form.service_agreement && form.service_agreement_monthly_rate !== '' ? parseInt(form.service_agreement_monthly_rate, 10) : null,
+    };
+    await supabase.from('clients').update(updates).eq('id', client.id);
+    onUpdate(updates);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div style={{ maxWidth: 480 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 20, marginBottom: 4 }}>Account Settings</div>
+        <div style={{ fontSize: 13, color: 'var(--slate)' }}>Configure this client's hosting package and service agreement.</div>
+      </div>
+
+      <div style={css.card}>
+        <div style={css.formGroup}>
+          <label style={css.formLabel}>Hosting Package</label>
+          <select
+            style={css.formSelect}
+            value={form.hosting_package}
+            onChange={e => setForm({ ...form, hosting_package: e.target.value })}
+          >
+            <option value="none">None</option>
+            <option value="essential">Essential ($50/mo)</option>
+            <option value="basic">Basic ($110/mo)</option>
+            <option value="advanced">Advanced ($275/mo — includes 3 hrs/mo)</option>
+          </select>
+        </div>
+
+        <div style={{ ...css.formGroup, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ ...css.formLabel, marginBottom: 2 }}>Service Agreement</div>
+            <div style={{ fontSize: 12, color: 'var(--slate)' }}>Monthly flat-rate agreement covering ad hoc work</div>
+          </div>
+          <button
+            onClick={() => setForm({ ...form, service_agreement: !form.service_agreement })}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: form.service_agreement ? 'var(--blue)' : 'var(--border)',
+              position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 3, left: form.service_agreement ? 22 : 3,
+              width: 18, height: 18, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s', display: 'block',
+            }} />
+          </button>
+        </div>
+
+        {form.service_agreement && (
+          <div style={css.formGroup}>
+            <label style={css.formLabel}>Monthly Rate (USD)</label>
+            <input
+              type="number" min="0" placeholder="e.g. 500"
+              style={css.formInput}
+              value={form.service_agreement_monthly_rate}
+              onChange={e => setForm({ ...form, service_agreement_monthly_rate: e.target.value })}
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          {saved && <span style={{ fontSize: 12, color: 'var(--blue)', fontWeight: 700 }}>✓ Saved</span>}
+          <button style={css.primaryBtn} onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
