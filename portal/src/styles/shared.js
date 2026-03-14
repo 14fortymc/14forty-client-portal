@@ -26,7 +26,7 @@ export const css = {
   pill_due: { background: 'var(--orange-light)', color: 'var(--orange)' },
   pill_pending: { background: '#eef0f2', color: 'var(--slate)' },
   pill_open: { background: 'var(--orange-light)', color: 'var(--orange)' },
-  pill_completed: { background: 'var(--blue-light)', color: 'var(--blue)' },
+  pill_completed: { background: '#dcfce7', color: '#16a34a' },
   pill_awaiting: { background: '#f3f0fb', color: '#7c5cbf' },
   pill_in_progress: { background: 'var(--orange-light)', color: 'var(--orange)' },
   pill_on_hold: { background: '#eef0f2', color: 'var(--slate)' },
