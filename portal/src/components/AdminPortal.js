@@ -104,7 +104,10 @@ const KANBAN_COLUMNS = [
 function AdminWorkRequests() {
   const [requests, setRequests] = useState([]);
   const [clients, setClients] = useState({});
+  const [clientList, setClientList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterClient, setFilterClient] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -115,6 +118,7 @@ function AdminWorkRequests() {
     (cls || []).forEach(c => clientMap[c.id] = c.company_name || c.name);
     setRequests(reqs || []);
     setClients(clientMap);
+    setClientList(cls || []);
     setLoading(false);
   };
 
@@ -125,6 +129,16 @@ function AdminWorkRequests() {
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 
+  const filtered = requests
+    .filter(r => !filterClient || r.client_id === filterClient)
+    .filter(r => !filterStatus || (r.status || 'open') === filterStatus);
+
+  const visibleColumns = filterStatus
+    ? KANBAN_COLUMNS.filter(c => c.key === filterStatus)
+    : KANBAN_COLUMNS;
+
+  const hasFilters = filterClient || filterStatus;
+
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
   if (requests.length === 0) return (
@@ -132,48 +146,75 @@ function AdminWorkRequests() {
   );
 
   return (
-    <div style={{ overflowX: 'auto', margin: '0 -40px', padding: '0 40px' }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 860, paddingBottom: 24 }}>
-        {KANBAN_COLUMNS.map(col => {
-          const cards = requests.filter(r => (r.status || 'open') === col.key);
-          return (
-            <div key={col.key} style={{ flex: '1 0 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select value={filterClient} onChange={e => setFilterClient(e.target.value)}
+          style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '7px 12px', fontSize: 13, fontFamily: 'inherit', background: 'var(--white)', cursor: 'pointer', minWidth: 160 }}>
+          <option value="">All Clients</option>
+          {clientList.map(c => <option key={c.id} value={c.id}>{c.company_name || c.name}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '7px 12px', fontSize: 13, fontFamily: 'inherit', background: 'var(--white)', cursor: 'pointer', minWidth: 150 }}>
+          <option value="">All Statuses</option>
+          {KANBAN_COLUMNS.map(col => <option key={col.key} value={col.key}>{col.label}</option>)}
+        </select>
+        {hasFilters && (
+          <span onClick={() => { setFilterClient(''); setFilterStatus(''); }}
+            style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 700 }}>
+            Clear filters
+          </span>
+        )}
+        {hasFilters && (
+          <span style={{ fontSize: 12, color: 'var(--slate)', marginLeft: 4 }}>
+            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
 
-              {/* Column header */}
-              <div style={{ background: col.bg, borderRadius: 8, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{col.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, background: 'rgba(255,255,255,0.65)', borderRadius: 100, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>{cards.length}</span>
-              </div>
+      <div style={{ overflowX: 'auto', margin: '0 -40px', padding: '0 40px' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: filterStatus ? 0 : 860, paddingBottom: 24 }}>
+          {visibleColumns.map(col => {
+            const cards = filtered.filter(r => (r.status || 'open') === col.key);
+            return (
+              <div key={col.key} style={{ flex: '1 0 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-              {/* Empty column */}
-              {cards.length === 0 && (
-                <div style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', fontSize: 12, color: 'var(--slate)', textAlign: 'center', opacity: 0.6 }}>Empty</div>
-              )}
-
-              {/* Cards */}
-              {cards.map(r => (
-                <div key={r.id} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 13px', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 700 }}>{clients[r.client_id] || 'Unknown'}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{r.subject}</div>
-                  {r.type && <div style={{ fontSize: 11, color: 'var(--slate)' }}>{r.type}</div>}
-                  <div style={{ fontSize: 11, color: 'var(--slate)' }}>{fmtDate(r.created_at)}</div>
-                  {r.detail && <div style={{ fontSize: 11, color: 'var(--slate)', lineHeight: 1.4, borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 2 }}>{r.detail.length > 80 ? r.detail.slice(0, 80) + '…' : r.detail}</div>}
-                  <select
-                    value={r.status || 'open'}
-                    onChange={e => updateStatus(r.id, e.target.value)}
-                    style={{ marginTop: 2, width: '100%', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 7px', fontSize: 11, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer' }}>
-                    <option value="open">Open</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
+                {/* Column header */}
+                <div style={{ background: col.bg, borderRadius: 8, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: col.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{col.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: col.color, background: 'rgba(255,255,255,0.65)', borderRadius: 100, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>{cards.length}</span>
                 </div>
-              ))}
 
-            </div>
-          );
+                {/* Empty column */}
+                {cards.length === 0 && (
+                  <div style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', fontSize: 12, color: 'var(--slate)', textAlign: 'center', opacity: 0.6 }}>Empty</div>
+                )}
+
+                {/* Cards */}
+                {cards.map(r => (
+                  <div key={r.id} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 13px', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 700 }}>{clients[r.client_id] || 'Unknown'}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{r.subject}</div>
+                    {r.type && <div style={{ fontSize: 11, color: 'var(--slate)' }}>{r.type}</div>}
+                    <div style={{ fontSize: 11, color: 'var(--slate)' }}>{fmtDate(r.created_at)}</div>
+                    {r.detail && <div style={{ fontSize: 11, color: 'var(--slate)', lineHeight: 1.4, borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 2 }}>{r.detail.length > 80 ? r.detail.slice(0, 80) + '…' : r.detail}</div>}
+                    <select
+                      value={r.status || 'open'}
+                      onChange={e => updateStatus(r.id, e.target.value)}
+                      style={{ marginTop: 2, width: '100%', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 7px', fontSize: 11, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer' }}>
+                      <option value="open">Open</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                ))}
+
+              </div>
+            );
         })}
+        </div>
       </div>
     </div>
   );

@@ -797,6 +797,14 @@ function AdminAssets({ clientId }) {
 }
 
 // ── WORK REQUESTS ─────────────────────────────────────────
+const CLIENT_KANBAN_COLUMNS = [
+  { key: 'open',        label: 'Open',        color: 'var(--orange)', bg: 'var(--orange-light)' },
+  { key: 'on_hold',     label: 'On Hold',     color: '#64748b',       bg: '#eef0f2' },
+  { key: 'in_progress', label: 'In Progress', color: '#7c5cbf',       bg: '#f3f0fb' },
+  { key: 'completed',   label: 'Completed',   color: '#16a34a',       bg: '#dcfce7' },
+  { key: 'rejected',    label: 'Rejected',    color: '#dc2626',       bg: '#fee2e2' },
+];
+
 function AdminWorkRequestsDetail({ clientId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -812,8 +820,8 @@ function AdminWorkRequestsDetail({ clientId }) {
   };
 
   const updateStatus = async (id, status) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     await supabase.from('work_requests').update({ status }).eq('id', id);
-    fetchRequests();
   };
 
   const saveActualHours = async (id) => {
@@ -821,13 +829,13 @@ function AdminWorkRequestsDetail({ clientId }) {
     if (isNaN(hrs)) return;
     await supabase.from('work_requests').update({ actual_hours: hrs }).eq('id', id);
     setActualHoursEdit(prev => { const n = { ...prev }; delete n[id]; return n; });
-    fetchRequests();
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, actual_hours: hrs } : r));
   };
 
   const deleteRequest = async (id) => {
     await supabase.from('work_requests').delete().eq('id', id);
     setDeleteConfirm(null);
-    fetchRequests();
+    setRequests(prev => prev.filter(r => r.id !== id));
   };
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
@@ -840,88 +848,115 @@ function AdminWorkRequestsDetail({ clientId }) {
       flat_rate: { background: '#dcfce7', color: '#16a34a' },
     };
     const labels = { included: 'Included', hourly: 'Hourly', flat_rate: 'Flat Rate' };
-    return <span style={{ ...css.pill, ...styles[billing_type] }}>{labels[billing_type]}</span>;
+    return <span style={{ ...css.pill, fontSize: 10, padding: '2px 7px', ...styles[billing_type] }}>{labels[billing_type]}</span>;
   };
 
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {requests.length === 0 && <div style={{ ...css.card, textAlign: 'center', color: 'var(--slate)', fontSize: 14 }}>No work requests from this client yet.</div>}
-      {requests.map(r => (
-        <div key={r.id} style={{ ...css.card, gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{r.subject}</div>
-              <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: r.detail ? 8 : 0 }}>
-                {r.request_category === 'website_update' ? 'Website Update' : r.request_category === 'ad_hoc' ? 'Ad Hoc Work' : ''}
-                {r.type ? ` · ${r.type}` : ''}
-                {' · '}{fmtDate(r.created_at)}
-              </div>
-              {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.5 }}>{r.detail}</div>}
-              {r.asana_task_url && (
-                <div style={{ marginTop: 6 }}>
-                  <a href={r.asana_task_url} target="_blank" rel="noopener noreferrer" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 12, fontWeight: 700, color: '#f06a35', background: '#fff4f0',
-                    borderRadius: 6, padding: '4px 10px', textDecoration: 'none',
-                    border: '1px solid #f06a3522',
-                  }}>
-                    View in Asana ↗
-                  </a>
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {billingBadge(r.billing_type)}
-                <select value={r.status} onChange={e => updateStatus(r.id, e.target.value)}
-                  style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  <option value="open">Open</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-              {deleteConfirm === r.id ? (
-                <span>
-                  <span style={{ fontSize: 12, color: '#dc2626', marginRight: 6 }}>Delete?</span>
-                  <span onClick={() => deleteRequest(r.id)} style={{ fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 700, marginRight: 8 }}>Yes</span>
-                  <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
-                </span>
-              ) : (
-                <span onClick={() => setDeleteConfirm(r.id)} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Delete</span>
-              )}
-            </div>
-          </div>
+  if (requests.length === 0) return (
+    <div style={{ ...css.card, textAlign: 'center', color: 'var(--slate)', fontSize: 14 }}>No work requests from this client yet.</div>
+  );
 
-          {/* Log actual hours */}
-          {r.status === 'completed' && (
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 12, color: 'var(--slate)', fontWeight: 700 }}>Actual Hours:</span>
-              {r.actual_hours != null && actualHoursEdit[r.id] === undefined ? (
-                <>
-                  <span style={{ fontSize: 13 }}>{r.actual_hours} hrs</span>
-                  <span onClick={() => setActualHoursEdit(prev => ({ ...prev, [r.id]: String(r.actual_hours) }))} style={{ fontSize: 12, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
-                </>
-              ) : (
-                <>
-                  <input
-                    type="number" step="0.25" min="0"
-                    placeholder="0.00"
-                    value={actualHoursEdit[r.id] ?? ''}
-                    onChange={e => setActualHoursEdit(prev => ({ ...prev, [r.id]: e.target.value }))}
-                    style={{ width: 80, border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)' }}
-                  />
-                  <button onClick={() => saveActualHours(r.id)} style={{ ...css.payBtn, padding: '4px 12px', fontSize: 12 }}>Save</button>
-                  {r.actual_hours != null && <span onClick={() => setActualHoursEdit(prev => { const n = { ...prev }; delete n[r.id]; return n; })} style={{ fontSize: 12, color: 'var(--slate)', cursor: 'pointer' }}>Cancel</span>}
-                </>
+  return (
+    <div style={{ overflowX: 'auto', margin: '0 -40px', padding: '0 40px' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 860, paddingBottom: 24 }}>
+        {CLIENT_KANBAN_COLUMNS.map(col => {
+          const cards = requests.filter(r => (r.status || 'open') === col.key);
+          return (
+            <div key={col.key} style={{ flex: '1 0 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Column header */}
+              <div style={{ background: col.bg, borderRadius: 8, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{col.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, background: 'rgba(255,255,255,0.65)', borderRadius: 100, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>{cards.length}</span>
+              </div>
+
+              {cards.length === 0 && (
+                <div style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', fontSize: 12, color: 'var(--slate)', textAlign: 'center', opacity: 0.6 }}>Empty</div>
               )}
+
+              {cards.map(r => (
+                <div key={r.id} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 13px', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+
+                  {/* Subject + billing badge */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, flex: 1 }}>{r.subject}</div>
+                    {billingBadge(r.billing_type)}
+                  </div>
+
+                  {/* Category / type */}
+                  {(r.request_category || r.type) && (
+                    <div style={{ fontSize: 11, color: 'var(--slate)' }}>
+                      {r.request_category === 'website_update' ? 'Website Update' : r.request_category === 'ad_hoc' ? 'Ad Hoc Work' : ''}
+                      {r.type ? ` · ${r.type}` : ''}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 11, color: 'var(--slate)' }}>{fmtDate(r.created_at)}</div>
+
+                  {r.detail && (
+                    <div style={{ fontSize: 11, color: 'var(--slate)', lineHeight: 1.4, borderTop: '1px solid var(--border)', paddingTop: 5, marginTop: 2 }}>
+                      {r.detail.length > 100 ? r.detail.slice(0, 100) + '…' : r.detail}
+                    </div>
+                  )}
+
+                  {r.asana_task_url && (
+                    <a href={r.asana_task_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: '#f06a35', background: '#fff4f0', borderRadius: 5, padding: '3px 8px', textDecoration: 'none', border: '1px solid #f06a3522', alignSelf: 'flex-start' }}>
+                      Asana ↗
+                    </a>
+                  )}
+
+                  {/* Actual hours (completed cards only) */}
+                  {col.key === 'completed' && (
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--slate)', fontWeight: 700 }}>Hrs:</span>
+                      {r.actual_hours != null && actualHoursEdit[r.id] === undefined ? (
+                        <>
+                          <span style={{ fontSize: 11 }}>{r.actual_hours}</span>
+                          <span onClick={() => setActualHoursEdit(prev => ({ ...prev, [r.id]: String(r.actual_hours) }))} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                        </>
+                      ) : (
+                        <>
+                          <input type="number" step="0.25" min="0" placeholder="0.00"
+                            value={actualHoursEdit[r.id] ?? ''}
+                            onChange={e => setActualHoursEdit(prev => ({ ...prev, [r.id]: e.target.value }))}
+                            style={{ width: 60, border: '1px solid var(--border)', borderRadius: 5, padding: '3px 6px', fontSize: 11, fontFamily: 'inherit', background: 'var(--cream)' }}
+                          />
+                          <button onClick={() => saveActualHours(r.id)} style={{ ...css.payBtn, padding: '3px 10px', fontSize: 11 }}>Save</button>
+                          {r.actual_hours != null && <span onClick={() => setActualHoursEdit(prev => { const n = { ...prev }; delete n[r.id]; return n; })} style={{ fontSize: 11, color: 'var(--slate)', cursor: 'pointer' }}>Cancel</span>}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Status select + delete */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <select value={r.status || 'open'} onChange={e => updateStatus(r.id, e.target.value)}
+                      style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 5, padding: '4px 7px', fontSize: 11, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer' }}>
+                      <option value="open">Open</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                    {deleteConfirm === r.id ? (
+                      <span style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                        <span onClick={() => deleteRequest(r.id)} style={{ fontSize: 11, color: '#dc2626', cursor: 'pointer', fontWeight: 700 }}>Yes</span>
+                        <span style={{ fontSize: 11, color: 'var(--slate)' }}>/</span>
+                        <span onClick={() => setDeleteConfirm(null)} style={{ fontSize: 11, color: 'var(--slate)', cursor: 'pointer' }}>No</span>
+                      </span>
+                    ) : (
+                      <span onClick={() => setDeleteConfirm(r.id)} style={{ fontSize: 11, color: 'var(--slate)', cursor: 'pointer', flexShrink: 0 }}>Delete</span>
+                    )}
+                  </div>
+
+                </div>
+              ))}
+
             </div>
-          )}
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }
