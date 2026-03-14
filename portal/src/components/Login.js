@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
+
 const s = {
   wrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)' },
   box: { background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 14, padding: '48px 40px', width: 400, boxShadow: 'var(--shadow)' },
@@ -34,11 +36,19 @@ export default function Login() {
   const handleReset = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) setError(error.message);
-    else setResetSent(true);
+    setError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, portal_url: window.location.origin }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
+      setResetSent(true);
+    } catch (err) {
+      setError(err.message);
+    }
     setLoading(false);
   };
 

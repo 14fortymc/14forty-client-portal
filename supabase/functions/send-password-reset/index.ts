@@ -18,39 +18,36 @@ serve(async (req) => {
       });
     }
 
-    // Verify caller is an authenticated admin
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const callerClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user: callerUser } } = await callerClient.auth.getUser();
-    if (!callerUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const { data: callerRecord } = await supabaseAdmin
-      .from('client_users')
-      .select('is_admin')
-      .eq('user_id', callerUser.id)
-      .single();
-    if (!callerRecord?.is_admin) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // If an auth header is provided, verify the caller is an admin (admin portal flow).
+    // If no auth header, allow as a self-service reset (login page "forgot password" flow).
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      const callerClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user: callerUser } } = await callerClient.auth.getUser();
+      if (!callerUser) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: callerRecord } = await supabaseAdmin
+        .from('client_users')
+        .select('is_admin')
+        .eq('user_id', callerUser.id)
+        .single();
+      if (!callerRecord?.is_admin) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Generate a password reset link via Supabase admin (no email sent by Supabase)

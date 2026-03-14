@@ -45,7 +45,21 @@ export default function App() {
   const [passwordReset, setPasswordReset] = useState(false);
 
   useEffect(() => {
+    // Detect recovery links before getSession() processes them — prevents the portal
+    // from flashing visible while we wait for the PASSWORD_RECOVERY event.
+    const hash = window.location.hash;
+    const searchParams = new URLSearchParams(window.location.search);
+    const isRecoveryUrl =
+      hash.includes('type=recovery') ||
+      searchParams.get('type') === 'recovery';
+
+    if (isRecoveryUrl) {
+      setPasswordReset(true);
+      setLoading(false);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isRecoveryUrl) return; // wait for PASSWORD_RECOVERY event
       setSession(session);
       if (session) loadClient(session.user.id);
       else setLoading(false);
