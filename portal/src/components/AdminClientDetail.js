@@ -962,6 +962,33 @@ function AdminWorkRequestsDetail({ clientId }) {
 }
 
 // ── ACCOUNT SETTINGS ──────────────────────────────────────
+
+const PORTAL_MODULES = [
+  { key: 'home',     label: 'Home',              desc: 'Dashboard overview and quick links' },
+  { key: 'invoices', label: 'Invoices',           desc: 'Invoice history and balance' },
+  { key: 'projects', label: 'Project Status',     desc: 'Active project timelines and overviews' },
+  { key: 'requests', label: 'Requests',           desc: 'Submit and track work requests' },
+  { key: 'assets',   label: 'Delivered Assets',   desc: 'File and asset delivery' },
+  { key: 'billing',  label: 'Billing Info',       desc: 'Payment method and billing details' },
+  { key: 'calendar', label: 'Request a Meeting',  desc: 'Schedule meetings with the team' },
+];
+
+function Toggle({ on, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{
+      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+      background: on ? 'var(--blue)' : 'var(--border)',
+      position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+    }}>
+      <span style={{
+        position: 'absolute', top: 3, left: on ? 22 : 3,
+        width: 18, height: 18, borderRadius: '50%', background: '#fff',
+        transition: 'left 0.2s', display: 'block',
+      }} />
+    </button>
+  );
+}
+
 function AdminAccountSettings({ client, onUpdate }) {
   const [form, setForm] = useState({
     hosting_package: client.hosting_package || 'none',
@@ -970,6 +997,14 @@ function AdminAccountSettings({ client, onUpdate }) {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // portal_modules: {} means all visible; {calendar: false} means calendar hidden
+  const [modules, setModules] = useState(client.portal_modules || {});
+  const [savingModules, setSavingModules] = useState(false);
+  const [savedModules, setSavedModules] = useState(false);
+
+  const isVisible = (key) => modules[key] !== false;
+  const toggleModule = (key) => setModules(prev => ({ ...prev, [key]: !isVisible(key) }));
 
   const save = async () => {
     setSaving(true);
@@ -985,13 +1020,23 @@ function AdminAccountSettings({ client, onUpdate }) {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const saveModules = async () => {
+    setSavingModules(true);
+    await supabase.from('clients').update({ portal_modules: modules }).eq('id', client.id);
+    onUpdate({ portal_modules: modules });
+    setSavingModules(false);
+    setSavedModules(true);
+    setTimeout(() => setSavedModules(false), 3000);
+  };
+
   return (
-    <div style={{ maxWidth: 480 }}>
+    <div style={{ maxWidth: 520 }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 20, marginBottom: 4 }}>Account Settings</div>
-        <div style={{ fontSize: 13, color: 'var(--slate)' }}>Configure this client's hosting package and service agreement.</div>
+        <div style={{ fontSize: 13, color: 'var(--slate)' }}>Configure this client's hosting package, service agreement, and portal visibility.</div>
       </div>
 
+      {/* Hosting + Service Agreement */}
       <div style={css.card}>
         <div style={css.formGroup}>
           <label style={css.formLabel}>Hosting Package</label>
@@ -1012,20 +1057,7 @@ function AdminAccountSettings({ client, onUpdate }) {
             <div style={{ ...css.formLabel, marginBottom: 2 }}>Service Agreement</div>
             <div style={{ fontSize: 12, color: 'var(--slate)' }}>Monthly flat-rate agreement covering ad hoc work</div>
           </div>
-          <button
-            onClick={() => setForm({ ...form, service_agreement: !form.service_agreement })}
-            style={{
-              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: form.service_agreement ? 'var(--blue)' : 'var(--border)',
-              position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: 3, left: form.service_agreement ? 22 : 3,
-              width: 18, height: 18, borderRadius: '50%', background: '#fff',
-              transition: 'left 0.2s', display: 'block',
-            }} />
-          </button>
+          <Toggle on={form.service_agreement} onToggle={() => setForm({ ...form, service_agreement: !form.service_agreement })} />
         </div>
 
         {form.service_agreement && (
@@ -1045,6 +1077,36 @@ function AdminAccountSettings({ client, onUpdate }) {
           <button style={css.primaryBtn} onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
+        </div>
+      </div>
+
+      {/* Portal Visibility */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 18, marginBottom: 3 }}>Portal Visibility</div>
+          <div style={{ fontSize: 13, color: 'var(--slate)' }}>Choose which sections appear in this client's portal.</div>
+        </div>
+        <div style={css.card}>
+          {PORTAL_MODULES.map((mod, i) => (
+            <div key={mod.key} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+              paddingBottom: i < PORTAL_MODULES.length - 1 ? 14 : 0,
+              marginBottom: i < PORTAL_MODULES.length - 1 ? 14 : 0,
+              borderBottom: i < PORTAL_MODULES.length - 1 ? '1px solid var(--border)' : 'none',
+            }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: isVisible(mod.key) ? 'var(--navy)' : 'var(--slate)', transition: 'color 0.15s' }}>{mod.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 1 }}>{mod.desc}</div>
+              </div>
+              <Toggle on={isVisible(mod.key)} onToggle={() => toggleModule(mod.key)} />
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            {savedModules && <span style={{ fontSize: 12, color: 'var(--blue)', fontWeight: 700 }}>✓ Saved</span>}
+            <button style={css.primaryBtn} onClick={saveModules} disabled={savingModules}>
+              {savingModules ? 'Saving…' : 'Save Visibility'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

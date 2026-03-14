@@ -39,6 +39,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [portalModules, setPortalModules] = useState({});
   const [tab, setTab] = useState('home');
   const [pendingTasks, setPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -69,7 +70,7 @@ export default function App() {
   const loadClient = async (uid) => {
     const { data: cu } = await supabase
       .from('client_users')
-      .select('client_id, is_admin, password_changed, clients(name, company_name)')
+      .select('client_id, is_admin, password_changed, clients(name, company_name, portal_modules)')
       .eq('user_id', uid)
       .single();
 
@@ -79,6 +80,7 @@ export default function App() {
       setIsAdmin(cu.is_admin || false);
       setPasswordChanged(cu.password_changed ?? true);
       setClientName(cu.clients?.company_name || cu.clients?.name || '');
+      setPortalModules(cu.clients?.portal_modules || {});
       if (!cu.is_admin) loadPendingTasks(cu.client_id);
     }
     setLoading(false);
@@ -125,6 +127,11 @@ export default function App() {
 
   const initials = clientName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
+  // Filter nav by portal_modules; a missing key or true = visible, false = hidden
+  const visibleNav = NAV.filter(n => portalModules[n.key] !== false);
+  // If current tab was hidden, fall back to first visible
+  const activeTab = visibleNav.find(n => n.key === tab) ? tab : (visibleNav[0]?.key || 'home');
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={{ width: 248, minWidth: 248, background: 'var(--navy)', padding: '32px 0', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
@@ -139,15 +146,15 @@ export default function App() {
         </div>
 
         <nav style={{ padding: '16px 12px', flex: 1 }}>
-          {NAV.map(n => (
+          {visibleNav.map(n => (
             <div key={n.key}
               onClick={() => setTab(n.key)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 6,
                 fontSize: 14, cursor: 'pointer', marginBottom: 2, transition: 'all 0.14s',
-                background: tab === n.key ? 'var(--blue)' : 'transparent',
-                color: tab === n.key ? '#fff' : 'rgba(255,255,255,0.5)',
-                fontWeight: tab === n.key ? 700 : 400,
+                background: activeTab === n.key ? 'var(--blue)' : 'transparent',
+                color: activeTab === n.key ? '#fff' : 'rgba(255,255,255,0.5)',
+                fontWeight: activeTab === n.key ? 700 : 400,
               }}>
               {n.label}
               {n.key === 'requests' && pendingTasks > 0 && (
@@ -166,21 +173,21 @@ export default function App() {
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: 'var(--navy)' }}>{PAGE_TITLES[tab]}</div>
+          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: 'var(--navy)' }}>{PAGE_TITLES[activeTab]}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {tab === 'invoices' && <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '2px 9px' }}>Check Balance</span>}
+            {activeTab === 'invoices' && <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '2px 9px' }}>Check Balance</span>}
             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>{initials}</div>
           </div>
         </div>
 
         <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
-          {tab === 'home' && <Home clientId={clientId} clientName={clientName} setTab={setTab} />}
-          {tab === 'invoices' && <Invoices clientId={clientId} />}
-          {tab === 'projects' && <Projects clientId={clientId} />}
-          {tab === 'requests' && <Requests clientId={clientId} />}
-          {tab === 'assets' && <Assets clientId={clientId} />}
-          {tab === 'billing' && <Billing clientId={clientId} />}
-          {tab === 'calendar' && <Calendar clientId={clientId} />}
+          {activeTab === 'home' && <Home clientId={clientId} clientName={clientName} setTab={setTab} />}
+          {activeTab === 'invoices' && <Invoices clientId={clientId} />}
+          {activeTab === 'projects' && <Projects clientId={clientId} />}
+          {activeTab === 'requests' && <Requests clientId={clientId} />}
+          {activeTab === 'assets' && <Assets clientId={clientId} />}
+          {activeTab === 'billing' && <Billing clientId={clientId} />}
+          {activeTab === 'calendar' && <Calendar clientId={clientId} />}
         </div>
       </div>
     </div>
