@@ -77,7 +77,7 @@ export default function AdminPortal({ onSignOut, accessToken }) {
           <div style={{ fontSize: 12, color: 'var(--slate)', background: 'var(--cream)', padding: '4px 12px', borderRadius: 100, border: '1px solid var(--border)' }}>Admin</div>
         </div>
 
-        <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
+        <div style={{ padding: '36px 40px', maxWidth: tab === 'requests' && !selectedClient ? 'none' : 1020 }}>
           {selectedClient ? (
             <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} accessToken={accessToken} onClientUpdate={(updated) => setSelectedClient(prev => ({ ...prev, ...updated }))} />
           ) : tab === 'clients' ? (
@@ -92,6 +92,14 @@ export default function AdminPortal({ onSignOut, accessToken }) {
     </div>
   );
 }
+
+const KANBAN_COLUMNS = [
+  { key: 'open',        label: 'Open',        color: 'var(--orange)', bg: 'var(--orange-light)' },
+  { key: 'on_hold',     label: 'On Hold',     color: '#64748b',       bg: '#eef0f2' },
+  { key: 'in_progress', label: 'In Progress', color: '#7c5cbf',       bg: '#f3f0fb' },
+  { key: 'completed',   label: 'Completed',   color: '#16a34a',       bg: '#dcfce7' },
+  { key: 'rejected',    label: 'Rejected',    color: '#dc2626',       bg: '#fee2e2' },
+];
 
 function AdminWorkRequests() {
   const [requests, setRequests] = useState([]);
@@ -111,41 +119,62 @@ function AdminWorkRequests() {
   };
 
   const updateStatus = async (id, status) => {
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     await supabase.from('work_requests').update({ status }).eq('id', id);
-    fetchAll();
   };
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading…</div>;
 
+  if (requests.length === 0) return (
+    <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, fontSize: 14, color: 'var(--slate)', textAlign: 'center' }}>No work requests yet.</div>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {requests.length === 0 && <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, fontSize: 14, color: 'var(--slate)', textAlign: 'center' }}>No work requests yet.</div>}
-      {requests.map(r => (
-        <div key={r.id} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', boxShadow: 'var(--shadow)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700, marginBottom: 4 }}>{clients[r.client_id] || 'Unknown Client'}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{r.subject}</div>
-              <div style={{ fontSize: 13, color: 'var(--slate)' }}>{r.type} · {fmtDate(r.created_at)}</div>
-              {r.detail && <div style={{ fontSize: 13, color: 'var(--slate)', marginTop: 8, lineHeight: 1.5 }}>{r.detail}</div>}
+    <div style={{ overflowX: 'auto', margin: '0 -40px', padding: '0 40px' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 860, paddingBottom: 24 }}>
+        {KANBAN_COLUMNS.map(col => {
+          const cards = requests.filter(r => (r.status || 'open') === col.key);
+          return (
+            <div key={col.key} style={{ flex: '1 0 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Column header */}
+              <div style={{ background: col.bg, borderRadius: 8, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, textTransform: 'uppercase', letterSpacing: '0.8px' }}>{col.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: col.color, background: 'rgba(255,255,255,0.65)', borderRadius: 100, padding: '1px 7px', minWidth: 20, textAlign: 'center' }}>{cards.length}</span>
+              </div>
+
+              {/* Empty column */}
+              {cards.length === 0 && (
+                <div style={{ border: '2px dashed var(--border)', borderRadius: 8, padding: '20px 12px', fontSize: 12, color: 'var(--slate)', textAlign: 'center', opacity: 0.6 }}>Empty</div>
+              )}
+
+              {/* Cards */}
+              {cards.map(r => (
+                <div key={r.id} style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 13px', boxShadow: 'var(--shadow)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 700 }}>{clients[r.client_id] || 'Unknown'}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{r.subject}</div>
+                  {r.type && <div style={{ fontSize: 11, color: 'var(--slate)' }}>{r.type}</div>}
+                  <div style={{ fontSize: 11, color: 'var(--slate)' }}>{fmtDate(r.created_at)}</div>
+                  {r.detail && <div style={{ fontSize: 11, color: 'var(--slate)', lineHeight: 1.4, borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 2 }}>{r.detail.length > 80 ? r.detail.slice(0, 80) + '…' : r.detail}</div>}
+                  <select
+                    value={r.status || 'open'}
+                    onChange={e => updateStatus(r.id, e.target.value)}
+                    style={{ marginTop: 2, width: '100%', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 7px', fontSize: 11, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer' }}>
+                    <option value="open">Open</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              ))}
+
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-              <select
-                value={r.status}
-                onChange={e => updateStatus(r.id, e.target.value)}
-                style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', fontSize: 13, fontFamily: 'inherit', background: 'var(--cream)', cursor: 'pointer' }}>
-                <option value="open">Open</option>
-                <option value="on_hold">On Hold</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }
