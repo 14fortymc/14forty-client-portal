@@ -35,7 +35,7 @@ export default function Billing({ clientId }) {
   if (loading) return <div style={css.loading}>Loading…</div>;
 
   return (
-    <div style={{ ...css.card, maxWidth: 560 }}>
+    <div style={{ ...css.card, maxWidth: 560, width: '100%' }}>
       <div style={css.cardTitle}>Payment Method</div>
       <div style={{ marginBottom: 24 }}>
         <Row label="Card on file" value="Visa ending in 4242" />

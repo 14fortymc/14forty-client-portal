@@ -129,7 +129,7 @@ export default function Requests({ clientId }) {
 
       {/* WORK REQUESTS */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+        <div className="rsp-stack-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
             <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 22 }}>Work Requests</div>
             <div style={{ fontSize: 13, color: 'var(--slate)', marginTop: 2 }}>Ad hoc requests you've submitted to us</div>
@@ -141,7 +141,7 @@ export default function Requests({ clientId }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {workRequests.map(r => (
-              <div key={r.id} style={{ ...css.card, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={r.id} className="rsp-stack-sm" style={{ ...css.card, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{r.subject}</div>
                   <div style={{ fontSize: 12, color: 'var(--slate)', marginTop: 3 }}>{r.type} · Submitted {fmtDate(r.created_at)}</div>

@@ -40,3 +40,132 @@ body {
   color: var(--navy);
   min-height: 100vh;
 }
+
+/* ── Responsive shell ────────────────────────────────────── */
+
+/* Sidebar */
+.rsp-sidebar {
+  width: 248px;
+  min-width: 248px;
+  background: var(--navy);
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  flex-shrink: 0;
+  z-index: 200;
+  transition: transform 0.25s ease;
+}
+
+/* Dim backdrop for mobile drawer */
+.rsp-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  z-index: 199;
+  cursor: pointer;
+}
+.rsp-overlay.is-open { display: block; }
+
+/* Hamburger button — hidden on desktop */
+.rsp-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 5px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.rsp-hamburger span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--navy);
+  border-radius: 2px;
+}
+
+/* Main scroll area */
+.rsp-main { flex: 1; overflow-y: auto; min-width: 0; }
+
+/* Sticky top bar */
+.rsp-topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Page body */
+.rsp-page { padding: 36px 40px; max-width: 1020px; }
+
+/* Home bento grid */
+.rsp-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.rsp-span2 { grid-column: span 2; }
+.rsp-span4 { grid-column: span 4; }
+
+/* Recently-delivered 6-up inner grid */
+.rsp-assets-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+
+/* Horizontal table scroll */
+.rsp-tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Tab bar overflow scroll (admin detail) */
+.rsp-tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; scrollbar-width: none; }
+.rsp-tabs::-webkit-scrollbar { display: none; }
+
+/* ── Tablet: 640 – 1023 px ───────────────────────────────── */
+@media (max-width: 1023px) {
+  .rsp-sidebar {
+    position: fixed;
+    left: 0; top: 0;
+    height: 100%;
+    transform: translateX(-100%);
+  }
+  .rsp-sidebar.is-open { transform: translateX(0); }
+  .rsp-hamburger { display: flex; }
+  .rsp-topbar { padding: 16px 20px; }
+  .rsp-page  { padding: 24px 20px; }
+  .rsp-bento { grid-template-columns: repeat(2, 1fr); }
+  .rsp-span4 { grid-column: span 2 !important; }
+  .rsp-assets-row { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── Mobile: < 640 px ────────────────────────────────────── */
+@media (max-width: 639px) {
+  .rsp-topbar { padding: 12px 16px; }
+  .rsp-page  { padding: 14px; }
+  .rsp-bento { gap: 10px; }
+  .rsp-assets-row { grid-template-columns: repeat(2, 1fr); }
+
+  /* Shrink large type inside stat/greeting cards */
+  .rsp-stat-val  { font-size: 26px !important; }
+  .rsp-greeting  { font-size: 24px !important; }
+
+  /* Hide decorative date text */
+  .rsp-hide-sm { display: none !important; }
+
+  /* Stack a flex row vertically */
+  .rsp-stack-sm {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .rsp-stack-sm > button,
+  .rsp-stack-sm > .btn-full { width: 100%; }
+
+  /* Client card stat counters */
+  .rsp-client-stats { display: none !important; }
+}

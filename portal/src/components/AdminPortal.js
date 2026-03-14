@@ -13,6 +13,7 @@ export default function AdminPortal({ onSignOut, accessToken }) {
   const [tab, setTab] = useState('clients');
   const [selectedClient, setSelectedClient] = useState(null);
   const [counts, setCounts] = useState({ requests: 0, meetings: 0 });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { fetchCounts(); }, []);
 
@@ -25,71 +26,81 @@ export default function AdminPortal({ onSignOut, accessToken }) {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside style={{ width: 248, minWidth: 248, background: 'var(--navy)', padding: '32px 0', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
-        <div style={{ padding: '0 24px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 28 }}>
-          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-            14Forty <div style={{ width: 7, height: 7, background: 'var(--orange)', borderRadius: '50%' }}></div>
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: 6, fontWeight: 700 }}>Admin Portal</div>
-        </div>
+    <>
+      {/* Mobile/tablet backdrop */}
+      <div className={`rsp-overlay${sidebarOpen ? ' is-open' : ''}`} onClick={() => setSidebarOpen(false)} />
 
-        <nav style={{ padding: '16px 12px', flex: 1 }}>
-          {NAV.map(n => (
-            <div key={n.key}
-              onClick={() => { setTab(n.key); setSelectedClient(null); }}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer',
-                marginBottom: 2, transition: 'all 0.14s',
-                background: tab === n.key && !selectedClient ? 'var(--blue)' : 'transparent',
-                color: tab === n.key && !selectedClient ? '#fff' : 'rgba(255,255,255,0.5)',
-                fontWeight: tab === n.key && !selectedClient ? 700 : 400,
-              }}>
-              {n.label}
-              {n.key === 'requests' && counts.requests > 0 && (
-                <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '1px 7px' }}>{counts.requests}</span>
-              )}
-              {n.key === 'meetings' && counts.meetings > 0 && (
-                <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '1px 7px' }}>{counts.meetings}</span>
-              )}
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        {/* Sidebar */}
+        <aside className={`rsp-sidebar${sidebarOpen ? ' is-open' : ''}`}>
+          <div style={{ padding: '0 24px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 28 }}>
+            <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+              14Forty <div style={{ width: 7, height: 7, background: 'var(--orange)', borderRadius: '50%' }}></div>
             </div>
-          ))}
-        </nav>
+            <div style={{ fontSize: 11, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: 6, fontWeight: 700 }}>Admin Portal</div>
+          </div>
 
-        <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div onClick={onSignOut} style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', cursor: 'pointer' }}>Sign out</div>
-        </div>
-      </aside>
+          <nav style={{ padding: '16px 12px', flex: 1 }}>
+            {NAV.map(n => (
+              <div key={n.key}
+                onClick={() => { setTab(n.key); setSelectedClient(null); setSidebarOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer',
+                  marginBottom: 2, transition: 'all 0.14s',
+                  background: tab === n.key && !selectedClient ? 'var(--blue)' : 'transparent',
+                  color: tab === n.key && !selectedClient ? '#fff' : 'rgba(255,255,255,0.5)',
+                  fontWeight: tab === n.key && !selectedClient ? 700 : 400,
+                }}>
+                {n.label}
+                {n.key === 'requests' && counts.requests > 0 && (
+                  <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '1px 7px' }}>{counts.requests}</span>
+                )}
+                {n.key === 'meetings' && counts.meetings > 0 && (
+                  <span style={{ background: 'var(--orange)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '1px 7px' }}>{counts.meetings}</span>
+                )}
+              </div>
+            ))}
+          </nav>
 
-      {/* Main */}
-      <div style={{ flex: 1, overflowY: 'auto', background: 'var(--cream)' }}>
-        <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--border)', padding: '20px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {selectedClient && (
-              <span onClick={() => setSelectedClient(null)} style={{ fontSize: 13, color: 'var(--blue)', cursor: 'pointer', fontWeight: 700 }}>← All Clients</span>
+          <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div onClick={() => { onSignOut(); setSidebarOpen(false); }} style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', cursor: 'pointer' }}>Sign out</div>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <div className="rsp-main" style={{ background: 'var(--cream)' }}>
+          <div className="rsp-topbar">
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button className="rsp-hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Open menu">
+                <span /><span /><span />
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {selectedClient && (
+                  <span onClick={() => { setSelectedClient(null); setSidebarOpen(false); }} style={{ fontSize: 13, color: 'var(--blue)', cursor: 'pointer', fontWeight: 700 }}>← All Clients</span>
+                )}
+                <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: 'var(--navy)' }}>
+                  {selectedClient ? selectedClient.company_name || selectedClient.name : tab === 'clients' ? 'Clients' : tab === 'requests' ? 'Work Requests' : 'Meeting Requests'}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--slate)', background: 'var(--cream)', padding: '4px 12px', borderRadius: 100, border: '1px solid var(--border)', flexShrink: 0 }}>Admin</div>
+          </div>
+
+          <div className="rsp-page">
+            {selectedClient ? (
+              <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} accessToken={accessToken} onClientUpdate={(updated) => setSelectedClient(prev => ({ ...prev, ...updated }))} />
+            ) : tab === 'clients' ? (
+              <AdminClients onSelectClient={setSelectedClient} accessToken={accessToken} />
+            ) : tab === 'requests' ? (
+              <AdminWorkRequests />
+            ) : (
+              <AdminMeetingRequests />
             )}
-            <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 26, color: 'var(--navy)' }}>
-              {selectedClient ? selectedClient.company_name || selectedClient.name : tab === 'clients' ? 'Clients' : tab === 'requests' ? 'Work Requests' : 'Meeting Requests'}
-            </div>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--slate)', background: 'var(--cream)', padding: '4px 12px', borderRadius: 100, border: '1px solid var(--border)' }}>Admin</div>
-        </div>
-
-        <div style={{ padding: '36px 40px', maxWidth: 1020 }}>
-          {selectedClient ? (
-            <AdminClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} accessToken={accessToken} onClientUpdate={(updated) => setSelectedClient(prev => ({ ...prev, ...updated }))} />
-          ) : tab === 'clients' ? (
-            <AdminClients onSelectClient={setSelectedClient} accessToken={accessToken} />
-          ) : tab === 'requests' ? (
-            <AdminWorkRequests />
-          ) : (
-            <AdminMeetingRequests />
-          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

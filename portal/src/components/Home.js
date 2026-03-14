@@ -120,16 +120,16 @@ export default function Home({ clientId, clientName, setTab }) {
       {/* ── Greeting ── */}
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 34, color: 'var(--navy)', lineHeight: 1.1 }}>
+          <div className="rsp-greeting" style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 34, color: 'var(--navy)', lineHeight: 1.1 }}>
             {greeting}, {clientName}.
           </div>
           <div style={{ fontSize: 14, color: 'var(--slate)', marginTop: 6 }}>Here's your overview for today.</div>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--slate)', textAlign: 'right', paddingBottom: 2 }}>{today}</div>
+        <div className="rsp-hide-sm" style={{ fontSize: 13, color: 'var(--slate)', textAlign: 'right', paddingBottom: 2 }}>{today}</div>
       </div>
 
       {/* ── Bento Grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div className="rsp-bento">
 
         {/* STAT CARDS — 4 across */}
         {STAT_CARDS.map((s, i) => (
@@ -157,7 +157,7 @@ export default function Home({ clientId, clientName, setTab }) {
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--slate)', marginBottom: 10 }}>
               {s.label}
             </div>
-            <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 32, color: 'var(--navy)', lineHeight: 1 }}>
+            <div className="rsp-stat-val" style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 32, color: 'var(--navy)', lineHeight: 1 }}>
               {s.value}
             </div>
             <div style={{ fontSize: 12, color: s.alert ? s.accent : 'var(--slate)', marginTop: 7, fontWeight: s.alert ? 600 : 400 }}>
@@ -167,7 +167,7 @@ export default function Home({ clientId, clientName, setTab }) {
         ))}
 
         {/* ── INVOICES — span 2 ── */}
-        <div style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
+        <div className="rsp-span2" style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={css.cardTitle}>Recent Invoices</div>
             <span
@@ -213,7 +213,7 @@ export default function Home({ clientId, clientName, setTab }) {
         </div>
 
         {/* ── MY TASKS — span 2 ── */}
-        <div style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
+        <div className="rsp-span2" style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={css.cardTitle}>My Tasks</div>
             <span
@@ -269,7 +269,7 @@ export default function Home({ clientId, clientName, setTab }) {
         </div>
 
         {/* ── PROJECT STATUS — span 2 ── */}
-        <div style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
+        <div className="rsp-span2" style={{ ...css.card, gridColumn: 'span 2', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={css.cardTitle}>Project Status</div>
             <span
@@ -431,7 +431,7 @@ export default function Home({ clientId, clientName, setTab }) {
         </div>
 
         {/* ── RECENTLY DELIVERED ASSETS — full width ── */}
-        <div style={{ ...css.card, gridColumn: 'span 4', padding: 24 }}>
+        <div className="rsp-span4" style={{ ...css.card, gridColumn: 'span 4', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={css.cardTitle}>Recently Delivered</div>
             <span
@@ -444,7 +444,7 @@ export default function Home({ clientId, clientName, setTab }) {
           {assets.length === 0 ? (
             <EmptyState icon="📦" text="No assets delivered yet — check back soon." />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+            <div className="rsp-assets-row">
               {assets.map(a => (
                 <a
                   key={a.id}

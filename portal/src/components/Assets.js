@@ -73,7 +73,7 @@ export default function Assets({ clientId }) {
   return (
     <>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="rsp-stack-sm" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--slate)' }}>
           <span style={{ color: 'var(--blue)', fontWeight: 700, cursor: 'pointer' }} onClick={() => setFolderPath('/')}>All Files</span>

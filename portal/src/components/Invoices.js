@@ -53,7 +53,7 @@ export default function Invoices({ clientId }) {
         {invoices.length === 0 ? (
           <div style={css.empty}>No invoices yet.</div>
         ) : (
-          <table style={css.table}>
+          <div className="rsp-tscroll"><table style={css.table}>
             <thead>
               <tr>
                 {['Invoice', 'Description', 'Issued', 'Due', 'Amount', 'Status', ''].map(h => (
@@ -80,7 +80,7 @@ export default function Invoices({ clientId }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

@@ -51,7 +51,7 @@ export default function AdminClientDetail({ client, accessToken, onClientUpdate 
   return (
     <>
       {/* Client profile header */}
-      <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+      <div className="rsp-stack-sm" style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
         <div>
           <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 20, color: 'var(--navy)', marginBottom: 4 }}>{clientData.company_name || clientData.name}</div>
           <div style={{ fontSize: 13, color: 'var(--slate)', lineHeight: 1.8 }}>
@@ -68,7 +68,7 @@ export default function AdminClientDetail({ client, accessToken, onClientUpdate 
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+      <div className="rsp-tabs" style={{ gap: 4, marginBottom: 28, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <div key={t} onClick={() => setTab(t)} style={{
             padding: '10px 18px', fontSize: 14, cursor: 'pointer', fontWeight: tab === t ? 700 : 400,

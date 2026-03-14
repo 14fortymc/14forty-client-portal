@@ -90,6 +90,7 @@ export default function AdminClients({ onSelectClient, accessToken }) {
           {clients.map(client => (
             <div key={client.id}
               onClick={() => onSelectClient(client)}
+              className="rsp-stack-sm"
               style={{ ...css.card, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'box-shadow 0.14s' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(30,41,59,0.12)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow)'}>
@@ -97,7 +98,7 @@ export default function AdminClients({ onSelectClient, accessToken }) {
                 <div style={{ fontSize: 18, fontFamily: "'GaramondPro',Georgia,serif", marginBottom: 4 }}>{client.company_name || client.name}</div>
                 <div style={{ fontSize: 13, color: 'var(--slate)' }}>{client.billing_email} · Added {fmtDate(client.created_at)}</div>
               </div>
-              <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+              <div className="rsp-client-stats" style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 20, fontFamily: "'GaramondPro',Georgia,serif" }}>{client.projects?.[0]?.count || 0}</div>
                   <div style={{ fontSize: 11, color: 'var(--slate)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Projects</div>
