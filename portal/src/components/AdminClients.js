@@ -5,10 +5,16 @@ import { css } from '../styles/shared';
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 
 const HOSTING_PILL = {
-  none:      { label: 'No Hosting', bg: 'var(--cream)',        color: 'var(--slate)',  border: '1px solid var(--border)' },
-  essential: { label: 'Essential',  bg: 'var(--blue-light)',   color: 'var(--blue)',   border: 'none' },
-  basic:     { label: 'Basic',      bg: '#cde2ec',             color: '#2e6175',       border: 'none' },
+  none:      null, // don't show pill for 'none'
+  essential: { label: 'Essential',  bg: 'var(--cream)',        color: 'var(--slate)',  border: '1px solid var(--border)' },
+  basic:     { label: 'Basic',      bg: 'var(--blue-light)',   color: 'var(--blue)',   border: 'none' },
   advanced:  { label: 'Advanced',   bg: 'var(--orange-light)', color: 'var(--orange)', border: 'none' },
+};
+
+const VERTICAL_PILL = {
+  consulting: { label: 'Consulting', bg: '#f3f0fb', color: '#7c5cbf' },
+  retainer:   { label: 'Retainer',   bg: 'var(--blue-light)', color: 'var(--blue)' },
+  project:    { label: 'Project',    bg: 'var(--orange-light)', color: 'var(--orange)' },
 };
 
 function daysAgo(dateStr) {
@@ -23,6 +29,7 @@ export default function AdminClients({ onSelectClient, accessToken }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [verticalFilter, setVerticalFilter] = useState('all');
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: '', company_name: '', billing_email: '', billing_address: '', temp_password: '' });
   const [saving, setSaving] = useState(false);
@@ -85,34 +92,59 @@ export default function AdminClients({ onSelectClient, accessToken }) {
   if (loading) return <div style={{ fontSize: 14, color: 'var(--slate)' }}>Loading clients…</div>;
 
   const q = search.toLowerCase();
-  const filtered = clients.filter(c =>
-    q === '' ||
-    (c.company_name || '').toLowerCase().includes(q) ||
-    (c.name || '').toLowerCase().includes(q) ||
-    (c.billing_email || '').toLowerCase().includes(q)
-  );
 
-  const totalRequests = clients.reduce((s, c) => s + Number(c.open_requests || 0), 0);
-  const totalOverdue  = clients.reduce((s, c) => s + Number(c.overdue_invoices || 0), 0);
+  const filtered = clients.filter(c => {
+    // Search filter
+    const matchesSearch = q === '' ||
+      (c.company_name || '').toLowerCase().includes(q) ||
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.billing_email || '').toLowerCase().includes(q);
+
+    // Vertical filter
+    let matchesVertical = true;
+    if (verticalFilter === 'consulting') matchesVertical = c.service_vertical === 'consulting';
+    else if (verticalFilter === 'retainer') matchesVertical = c.service_vertical === 'retainer';
+    else if (verticalFilter === 'project') matchesVertical = c.service_vertical === 'project';
+    else if (verticalFilter === 'hosting_only') matchesVertical = !c.service_vertical && c.hosting_package && c.hosting_package !== 'none';
+
+    return matchesSearch && matchesVertical;
+  });
+
+  const totalClients  = filtered.length;
+  const totalRequests = filtered.reduce((s, c) => s + Number(c.open_requests   || 0), 0);
+  const totalOverdue  = filtered.reduce((s, c) => s + Number(c.overdue_invoices || 0), 0);
 
   return (
     <>
-      {/* Top bar: summary + search + new client */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: 'var(--slate)' }}>
-          {clients.length} {clients.length === 1 ? 'client' : 'clients'}
-          {totalRequests > 0 && <> · <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{totalRequests} open {totalRequests === 1 ? 'request' : 'requests'}</span></>}
-          {totalOverdue > 0  && <> · <span style={{ color: '#dc2626', fontWeight: 600 }}>{totalOverdue} overdue {totalOverdue === 1 ? 'invoice' : 'invoices'}</span></>}
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      {/* Summary bar */}
+      <div style={{ fontSize: 13, color: 'var(--slate)', marginBottom: 12 }}>
+        {totalClients} {totalClients === 1 ? 'client' : 'clients'}
+        {totalRequests > 0 && <> · <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{totalRequests} open {totalRequests === 1 ? 'request' : 'requests'}</span></>}
+        {totalOverdue  > 0 && <> · <span style={{ color: '#dc2626',       fontWeight: 600 }}>{totalOverdue} overdue {totalOverdue === 1 ? 'invoice' : 'invoices'}</span></>}
+      </div>
+
+      {/* Controls row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 1 }}>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search clients…"
             style={{ ...css.formInput, width: 220, padding: '8px 12px', fontSize: 13 }}
           />
-          <button style={css.primaryBtn} onClick={() => setModal(true)}>+ New Client</button>
+          <select
+            value={verticalFilter}
+            onChange={e => setVerticalFilter(e.target.value)}
+            style={{ ...css.formSelect, width: 180, padding: '8px 12px', fontSize: 13 }}
+          >
+            <option value="all">All Clients</option>
+            <option value="consulting">Consulting</option>
+            <option value="retainer">Retainer</option>
+            <option value="project">Project</option>
+            <option value="hosting_only">Hosting Only</option>
+          </select>
         </div>
+        <button style={css.primaryBtn} onClick={() => setModal(true)}>+ New Client</button>
       </div>
 
       {clients.length === 0 ? (
@@ -121,18 +153,19 @@ export default function AdminClients({ onSelectClient, accessToken }) {
           <button style={css.primaryBtn} onClick={() => setModal(true)}>Add Your First Client</button>
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ fontSize: 14, color: 'var(--slate)', padding: '24px 0' }}>No clients match "{search}".</div>
+        <div style={{ fontSize: 14, color: 'var(--slate)', padding: '24px 0' }}>No clients match your filters.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(client => {
-            const hosting    = HOSTING_PILL[client.hosting_package] || HOSTING_PILL.none;
-            const openReqs   = Number(client.open_requests   || 0);
-            const awaitingFb = Number(client.awaiting_feedback || 0);
-            const overdueInv = Number(client.overdue_invoices  || 0);
-            const allClear   = openReqs === 0 && awaitingFb === 0 && overdueInv === 0;
-            const lastActive = daysAgo(client.last_sign_in_at);
-            const displayName = client.company_name || client.name;
-            const contactLine = [client.name, client.billing_email].filter(Boolean).join(' · ');
+            const hostingPill  = HOSTING_PILL[client.hosting_package] || null;
+            const verticalPill = client.service_vertical ? VERTICAL_PILL[client.service_vertical] : null;
+            const openReqs     = Number(client.open_requests    || 0);
+            const awaitingFb   = Number(client.awaiting_feedback || 0);
+            const overdueInv   = Number(client.overdue_invoices  || 0);
+            const allClear     = openReqs === 0 && awaitingFb === 0 && overdueInv === 0;
+            const lastActive   = daysAgo(client.last_sign_in_at);
+            const displayName  = client.company_name || client.name;
+            const contactLine  = [client.name, client.billing_email].filter(Boolean).join(' · ');
 
             return (
               <div key={client.id}
@@ -144,36 +177,44 @@ export default function AdminClients({ onSelectClient, accessToken }) {
                   padding: '20px 24px',
                 }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(30,41,59,0.12)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow)'}>
-
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow)'}
+              >
                 {/* Main row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24 }}>
 
-                  {/* Left: name, hosting pill, contact */}
+                  {/* Left: company name, pills, contact */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 22, lineHeight: 1.2, marginBottom: 8 }}>
                       {displayName}
                     </div>
-                    <span style={{
-                      ...css.pill,
-                      background: hosting.bg,
-                      color: hosting.color,
-                      border: hosting.border,
-                      fontSize: 11,
-                    }}>
-                      {hosting.label}
-                    </span>
-                    <div style={{ fontSize: 13, color: 'var(--slate)', marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+
+                    {/* Vertical + Hosting pills side by side */}
+                    {(verticalPill || hostingPill) && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {verticalPill && (
+                          <span style={{ ...css.pill, background: verticalPill.bg, color: verticalPill.color, fontSize: 11 }}>
+                            {verticalPill.label}
+                          </span>
+                        )}
+                        {hostingPill && (
+                          <span style={{ ...css.pill, background: hostingPill.bg, color: hostingPill.color, border: hostingPill.border, fontSize: 11 }}>
+                            {hostingPill.label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: 13, color: 'var(--slate)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {contactLine}
                     </div>
                   </div>
 
-                  {/* Right: status pills + last active */}
+                  {/* Right: status indicators + last active */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
                       {openReqs > 0 && (
                         <span style={{ ...css.pill, ...css.pill_open }}>
-                          {openReqs} {openReqs === 1 ? 'request' : 'requests'}
+                          {openReqs} open {openReqs === 1 ? 'request' : 'requests'}
                         </span>
                       )}
                       {awaitingFb > 0 && (

@@ -992,6 +992,7 @@ function Toggle({ on, onToggle }) {
 function AdminAccountSettings({ client, onUpdate }) {
   const [form, setForm] = useState({
     hosting_package: client.hosting_package || 'none',
+    service_vertical: client.service_vertical || '',
     service_agreement: client.service_agreement || false,
     service_agreement_monthly_rate: client.service_agreement_monthly_rate || '',
   });
@@ -1010,6 +1011,7 @@ function AdminAccountSettings({ client, onUpdate }) {
     setSaving(true);
     const updates = {
       hosting_package: form.hosting_package,
+      service_vertical: form.service_vertical || null,
       service_agreement: form.service_agreement,
       service_agreement_monthly_rate: form.service_agreement && form.service_agreement_monthly_rate !== '' ? parseInt(form.service_agreement_monthly_rate, 10) : null,
     };
@@ -1033,11 +1035,25 @@ function AdminAccountSettings({ client, onUpdate }) {
     <div style={{ maxWidth: 520 }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: "'GaramondPro',Georgia,serif", fontSize: 20, marginBottom: 4 }}>Account Settings</div>
-        <div style={{ fontSize: 13, color: 'var(--slate)' }}>Configure this client's hosting package, service agreement, and portal visibility.</div>
+        <div style={{ fontSize: 13, color: 'var(--slate)' }}>Configure this client's service vertical, hosting package, service agreement, and portal visibility.</div>
       </div>
 
       {/* Hosting + Service Agreement */}
       <div style={css.card}>
+        <div style={css.formGroup}>
+          <label style={css.formLabel}>Service Vertical</label>
+          <select
+            style={css.formSelect}
+            value={form.service_vertical}
+            onChange={e => setForm({ ...form, service_vertical: e.target.value })}
+          >
+            <option value="">None</option>
+            <option value="consulting">Consulting</option>
+            <option value="retainer">Retainer</option>
+            <option value="project">Project</option>
+          </select>
+        </div>
+
         <div style={css.formGroup}>
           <label style={css.formLabel}>Hosting Package</label>
           <select
